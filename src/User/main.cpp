@@ -24,17 +24,18 @@ static inline lcd_pixel_type min(lcd_pixel_type a, lcd_pixel_type b) {
   return b;
 }
 
-#if defined(LCD_ROTATE_180)
-  #define FILLRECT(X,Y,W,H,C) \
-  { \
-    lcd_pixel_type x0 = LCD_WIDTH - (X) - (W) - 1; \
-    lcd_pixel_type y0 = LCD_HEIGHT - (Y) - (H) - 1; \
-    GUI_FillRectColor(x0, y0, x0 + W, y0 + H, C); \
-  }
+#if defined(LCD_MIRROR_HORIZONTALLY)
+  #define _X(X,W) (LCD_WIDTH - (X) - (W) - 1)
 #else
-  #define FILLRECT(X,Y,W,H,C) \
-    GUI_FillRectColor(X, Y, X + W, Y + H, C);
+  #define _X(X,W) (X)
 #endif
+#if defined(LCD_MIRROR_VERTICALLY)
+  #define _Y(Y,H) (LCD_HEIGHT - (Y) - (H) - 1)
+#else
+  #define _Y(Y,H) (Y)
+#endif
+#define FILLRECT(X,Y,W,H,C) \
+  GUI_FillRectColor(_X(X,W), _Y(Y,H), _X(X,W) + W, _Y(Y,H) + H, C);
 
 void clearDisplay() {
   // Clear ST7920 gui rect
@@ -112,13 +113,18 @@ int main(void)
   // Init LCD
   LCD_Init(&rccClocks, LCD_COLOR_BACKGROUND);
 
+  // Init knob LED
+#if defined(KNOB_RGB_ENABLE)
+  KnobLed_Init(rccClocks.PCLK1_Frequency);
+#endif
+
   // Calculate ST7920 screen dimensions
   st7920PixelSize = min(LCD_WIDTH / ST7920_GXROWS, (LCD_HEIGHT - 8) / ST7920_GYROWS);
   st7920StartX = (LCD_WIDTH - st7920PixelSize * ST7920_GXROWS) / 2;
   st7920StartY = 8 + (LCD_HEIGHT - 8 - st7920PixelSize * ST7920_GYROWS) / 2;
 
   // Show title
-  const uint8_t pTitle[] = {0x7F, 0x02, 0x04, 0x08, 0x7F, 0x38, 0x44, 0x44, 0x44, 0x38, 0x01, 0x01, 0x7F, 0x01, 0x01, 0x38, 0x44, 0x44, 0x44, 0x38, 0x3C, 0x40, 0x20, 0x7C, 0x00, 0x38, 0x44, 0x44, 0x44, 0x28, 0x7F, 0x04, 0x04, 0x78, 0x00, 0x7F, 0x09, 0x09, 0x09, 0x01, 0x3C, 0x60, 0x30, 0x60, 0x3C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1F, 0x20, 0x40, 0x20, 0x1F, 0x00, 0x42, 0x7F, 0x40, 0x00, 0x00, 0x60, 0x60, 0x00, 0x00, 0x22, 0x49, 0x49, 0x49, 0x36};
+  const uint8_t pTitle[] = {0x7F, 0x02, 0x04, 0x08, 0x7F, 0x38, 0x44, 0x44, 0x44, 0x38, 0x01, 0x01, 0x7F, 0x01, 0x01, 0x38, 0x44, 0x44, 0x44, 0x38, 0x3C, 0x40, 0x20, 0x7C, 0x00, 0x38, 0x44, 0x44, 0x44, 0x28, 0x7F, 0x04, 0x04, 0x78, 0x00, 0x7F, 0x09, 0x09, 0x09, 0x01, 0x3C, 0x60, 0x30, 0x60, 0x3C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1F, 0x20, 0x40, 0x20, 0x1F, 0x00, 0x42, 0x7F, 0x40, 0x00, 0x00, 0x60, 0x60, 0x00, 0x00, 0x22, 0x49, 0x49, 0x49, 0x36, 0x00, 0x60, 0x60, 0x00, 0x00, 0x00, 0x42, 0x7F, 0x40, 0x00};
   for (uint16_t i = 0, x = (LCD_WIDTH - sizeof(pTitle) / 5 * 6) / 2; i < sizeof(pTitle); ++i, ++x) {
     for (uint8_t y = 0; y < 8; ++y) {
       if ((pTitle[i] & (1 << y)) > 0) {
@@ -141,7 +147,7 @@ int main(void)
   st7920Emulator.reset(false);
 
   // Add first part of header line
-  FILLRECT(0, 7, (LCD_WIDTH - sizeof(pTitle) / 5 * 6) / 2 - 1, 1, LCD_COLOR_FOREGROUND);
+  FILLRECT(0, 7, LCD_WIDTH / 2 - sizeof(pTitle) / 5 * 3 - 1, 1, LCD_COLOR_FOREGROUND);
 
   // Init slave SPI
   ui32SpiActivated = 0;
@@ -172,7 +178,7 @@ int main(void)
 #endif
 
   // Add second part of header line
-  FILLRECT((LCD_WIDTH + sizeof(pTitle) / 5 * 6) / 2, 7, (LCD_WIDTH - sizeof(pTitle) / 5 * 6) / 2, 1, LCD_COLOR_FOREGROUND);
+  FILLRECT(LCD_WIDTH / 2 + sizeof(pTitle) / 5 * 3, 7, LCD_WIDTH / 2 - sizeof(pTitle) / 5 * 3, 1, LCD_COLOR_FOREGROUND);
 
   // Variables for SPI data received indicator
 #if defined(SPI_DATA_RECEIVED_INDICATOR)
@@ -296,6 +302,11 @@ int main(void)
           LCD_LED_On();
         #endif
 
+        // Turn on knob LED
+        #ifdef KNOB_RGB_ENABLE
+          KnobLed_On();
+        #endif
+
         // Reset emulator
         st7920Emulator.reset(true);
       }
@@ -317,6 +328,11 @@ int main(void)
         // Turn on screen
         LCD_LED_On();
 
+        // Turn on knob LED
+        #ifdef KNOB_RGB_ENABLE
+          KnobLed_On();
+        #endif
+
         // Set flag
         bScreenOn = true;
       }
@@ -337,6 +353,11 @@ int main(void)
       if (ui32Tmp >= LCD_IDLE_TIMEOUT_SEC * 1000) {
         // Turn off screen
         LCD_LED_Off();
+
+        // Turn off knob LED
+        #ifdef KNOB_RGB_ENABLE
+          KnobLed_Off();
+        #endif
 
         // Clear flag
         bScreenOn = false;

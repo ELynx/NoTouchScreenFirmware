@@ -5,10 +5,20 @@
 #define LCD_COLOR_BACKGROUND BLACK
 
 // Enable fullscreen mode
-//#define LCD_FULLSCREEN
+#define LCD_FULLSCREEN
+
+// Mirror screen horizontally
+//#define LCD_MIRROR_HORIZONTALLY
+
+// Mirror screen vertically
+//#define LCD_MIRROR_VERTICALLY
 
 // Rotate screen by 180°
 //#define LCD_ROTATE_180
+#if defined(LCD_ROTATE_180)
+    #define LCD_MIRROR_HORIZONTALLY
+    #define LCD_MIRROR_VERTICALLY
+#endif
 
 // Enable LCD backlight idle off
 //#define LCD_IDLE_OFF
@@ -28,3 +38,10 @@
 
 // Rotary knob long press duration for SPI restart
 #define SPI_RESTART_KNOB_PRESS_DURATION 3
+
+// Enable knob RGB led
+//#define KNOB_RGB_ENABLE
+#if defined(KNOB_RGB_ENABLE)
+    // Knob GRB color
+    #define KNOB_RGB_COLOR 0xFFFFFF
+#endif
