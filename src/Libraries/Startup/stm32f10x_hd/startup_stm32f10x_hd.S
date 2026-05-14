@@ -93,8 +93,7 @@ LoopFillZerobss:
   ldr  r3, = _ebss
   cmp  r2, r3
   bcc  FillZerobss
-/* Call the clock system intitialization function.*/
-  bl  SystemInit
+/* Clock system initialization is called explicitly from main. */
 /* Call the application's entry point.*/
   bl  main
   bx  lr

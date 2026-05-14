@@ -150,23 +150,23 @@
 /*******************************************************************************
 *  Clock Definitions
 *******************************************************************************/
-#ifdef SYSCLK_FREQ_HSE
-  uint32_t SystemCoreClock         = SYSCLK_FREQ_HSE;        /*!< System Clock Frequency (Core Clock) */
-#elif defined SYSCLK_FREQ_24MHz
-  uint32_t SystemCoreClock         = SYSCLK_FREQ_24MHz;        /*!< System Clock Frequency (Core Clock) */
-#elif defined SYSCLK_FREQ_36MHz
-  uint32_t SystemCoreClock         = SYSCLK_FREQ_36MHz;        /*!< System Clock Frequency (Core Clock) */
-#elif defined SYSCLK_FREQ_48MHz
-  uint32_t SystemCoreClock         = SYSCLK_FREQ_48MHz;        /*!< System Clock Frequency (Core Clock) */
-#elif defined SYSCLK_FREQ_56MHz
-  uint32_t SystemCoreClock         = SYSCLK_FREQ_56MHz;        /*!< System Clock Frequency (Core Clock) */
-#elif defined SYSCLK_FREQ_72MHz
-  uint32_t SystemCoreClock         = SYSCLK_FREQ_72MHz;        /*!< System Clock Frequency (Core Clock) */
-#else /*!< HSI Selected as System Clock source */
-  uint32_t SystemCoreClock         = HSI_VALUE;        /*!< System Clock Frequency (Core Clock) */
-#endif
+// #ifdef SYSCLK_FREQ_HSE
+//   uint32_t SystemCoreClock         = SYSCLK_FREQ_HSE;        /*!< System Clock Frequency (Core Clock) */
+// #elif defined SYSCLK_FREQ_24MHz
+//   uint32_t SystemCoreClock         = SYSCLK_FREQ_24MHz;        /*!< System Clock Frequency (Core Clock) */
+// #elif defined SYSCLK_FREQ_36MHz
+//   uint32_t SystemCoreClock         = SYSCLK_FREQ_36MHz;        /*!< System Clock Frequency (Core Clock) */
+// #elif defined SYSCLK_FREQ_48MHz
+//   uint32_t SystemCoreClock         = SYSCLK_FREQ_48MHz;        /*!< System Clock Frequency (Core Clock) */
+// #elif defined SYSCLK_FREQ_56MHz
+//   uint32_t SystemCoreClock         = SYSCLK_FREQ_56MHz;        /*!< System Clock Frequency (Core Clock) */
+// #elif defined SYSCLK_FREQ_72MHz
+//   uint32_t SystemCoreClock         = SYSCLK_FREQ_72MHz;        /*!< System Clock Frequency (Core Clock) */
+// #else /*!< HSI Selected as System Clock source */
+//   uint32_t SystemCoreClock         = HSI_VALUE;        /*!< System Clock Frequency (Core Clock) */
+// #endif
 
-__I uint8_t AHBPrescTable[16] = {0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 6, 7, 8, 9};
+// __I uint8_t AHBPrescTable[16] = {0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 6, 7, 8, 9};
 /**
   * @}
   */
@@ -211,7 +211,7 @@ static void SetSysClock(void);
   * @param  None
   * @retval None
   */
-void SystemInit (void)
+void SystemClockInit (void)
 {
   /* Reset the RCC clock configuration to the default reset state(for debug purpose) */
   /* Set HSION bit */
@@ -305,6 +305,7 @@ void SystemInit (void)
   * @param  None
   * @retval None
   */
+#if 0
 void SystemCoreClockUpdate (void)
 {
   uint32_t tmp = 0, pllmull = 0, pllsource = 0;
@@ -412,6 +413,7 @@ void SystemCoreClockUpdate (void)
   /* HCLK clock frequency */
   SystemCoreClock >>= tmp;
 }
+#endif
 
 /**
   * @brief  Configures the System clock frequency, HCLK, PCLK2 and PCLK1 prescalers.
@@ -1031,13 +1033,25 @@ static void SetSysClockTo72(void)
 
 #ifdef STM32F10X_CL
     /* Configure PLLs ------------------------------------------------------*/
-    /* PLL2 configuration: PLL2CLK = (HSE / 2) * 10 = 40 MHz */
-    /* PREDIV1 configuration: PREDIV1CLK = PLL2 / 5 = 8 MHz */
-
     RCC->CFGR2 &= (uint32_t)~(RCC_CFGR2_PREDIV2 | RCC_CFGR2_PLL2MUL |
                               RCC_CFGR2_PREDIV1 | RCC_CFGR2_PREDIV1SRC);
-    RCC->CFGR2 |= (uint32_t)(RCC_CFGR2_PREDIV2_DIV2 | RCC_CFGR2_PLL2MUL10 |
-                             RCC_CFGR2_PREDIV1SRC_PLL2 | RCC_CFGR2_PREDIV1_DIV5);
+    /* add proper configuration for distinct HSE_VALUE ---------------------*/
+    #if (HSE_VALUE == 8000000)
+      /* PLL2 configuration: PLL2CLK = (HSE / 2) * 10 = 40 MHz */
+      /* PREDIV1 configuration: PREDIV1CLK = PLL2 / 5 = 8 MHz */
+      RCC->CFGR2 |= (uint32_t)(RCC_CFGR2_PREDIV2_DIV2 | RCC_CFGR2_PLL2MUL10 |
+                               RCC_CFGR2_PREDIV1SRC_PLL2 | RCC_CFGR2_PREDIV1_DIV5);
+    #elif (HSE_VALUE == 16000000)
+      /* PLL2 configuration: PLL2CLK = (HSE / 4) * 10 = 40 MHz */
+      /* PREDIV1 configuration: PREDIV1CLK = PLL2 / 5 = 8 MHz */
+      RCC->CFGR2 |= (uint32_t)(RCC_CFGR2_PREDIV2_DIV4 | RCC_CFGR2_PLL2MUL10 |
+                               RCC_CFGR2_PREDIV1SRC_PLL2 | RCC_CFGR2_PREDIV1_DIV5);
+    #elif (HSE_VALUE == 25000000)
+      /* PLL2 configuration: PLL2CLK = (HSE / 5) * 8 = 40 MHz */
+      /* PREDIV1 configuration: PREDIV1CLK = PLL2 / 5 = 8 MHz */
+      RCC->CFGR2 |= (uint32_t)(RCC_CFGR2_PREDIV2_DIV5 | RCC_CFGR2_PLL2MUL8 |
+                               RCC_CFGR2_PREDIV1SRC_PLL2 | RCC_CFGR2_PREDIV1_DIV5);
+    #endif
 
     /* Enable PLL2 */
     RCC->CR |= RCC_CR_PLL2ON;
@@ -1054,16 +1068,13 @@ static void SetSysClockTo72(void)
 #else
     RCC->CFGR &= (uint32_t)((uint32_t)~(RCC_CFGR_PLLSRC | RCC_CFGR_PLLXTPRE |RCC_CFGR_PLLXTPRE_HSE_Div2|
                                           RCC_CFGR_PLLMULL));
-    if(HSE_VALUE == 8000000)
-    {
+    #if(HSE_VALUE == 8000000)
       /*  PLL configuration: PLLCLK = HSE * 9 = 72 MHz */
       RCC->CFGR |= (uint32_t)(RCC_CFGR_PLLSRC_HSE | RCC_CFGR_PLLMULL9);
-    }
-    else if(HSE_VALUE == 16000000)
-    {
+    #elif(HSE_VALUE == 16000000)
       /*  PLL configuration: PLLCLK = HSE/2 * 9 = 72 MHz */
       RCC->CFGR |= (uint32_t)(RCC_CFGR_PLLXTPRE_HSE_Div2|RCC_CFGR_PLLSRC_HSE | RCC_CFGR_PLLMULL9);
-    }
+    #endif
 #endif /* STM32F10X_CL */
 
     /* Enable PLL */

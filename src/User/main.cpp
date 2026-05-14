@@ -61,6 +61,8 @@ extern volatile uint32_t ui32SpiActivated;
 
 int main(void)
 {
+  SystemClockInit();
+
   // Set vector table offset
   SCB->VTOR = VECT_TAB_FLASH;
 
