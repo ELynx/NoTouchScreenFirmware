@@ -85,7 +85,7 @@ DRESULT disk_write (
   if (diskStatus & STA_NOINIT) return RES_NOTRDY;
   if (diskStatus & STA_PROTECT) return RES_WRPRT;
 
-	while (SD_WriteDisk((u8*)buff,sector,count)) // write error
+	while (SD_WriteDisk((uint8_t*)buff,sector,count)) // write error
   {
     SD_Init();	// init again
   }

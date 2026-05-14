@@ -69,21 +69,31 @@ int main(void)
   RCC_GetClocksFreq(&rccClocks);
 
   // Init NVIC priority group
+#if defined(GD32F2XX)
+  GD_NVIC_PriorityGroupConfig();
+#else
   NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
+#endif
 
   // Init delay
   Delay_init(rccClocks.HCLK_Frequency);
 
   // Disable JTAG
   #ifdef DISABLE_JTAG
-    RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
-    GPIO_PinRemapConfig(GPIO_Remap_SWJ_JTAGDisable, ENABLE); // disable JTAG, enable SWD
+    #if defined(GD32F2XX)
+      DISABLE_JTAG();
+    #else
+      RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
+      GPIO_PinRemapConfig(GPIO_Remap_SWJ_JTAGDisable, ENABLE); // disable JTAG, enable SWD
+    #endif
   #endif
 
   // Disable SWJ
   #ifdef DISABLE_DEBUG
-    RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
-    GPIO_PinRemapConfig(GPIO_Remap_SWJ_Disable, ENABLE); //disable JTAG & SWD
+    #if !defined(GD32F2XX)
+      RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
+      GPIO_PinRemapConfig(GPIO_Remap_SWJ_Disable, ENABLE); //disable JTAG & SWD
+    #endif
   #endif
 
   // Mount SD card

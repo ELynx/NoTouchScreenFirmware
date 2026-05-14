@@ -2,7 +2,10 @@
 #define _PIN_TFT35_V3_0_H_ // modify to actual filename !!!
 
 //MCU type (STM32F10x, STM32F2xx)
-#include "stm32f2xx.h"
+#ifndef MCU_TYPE
+  #define MCU_TYPE
+  #include "stm32f2xx.h"
+#endif
 
 // LCD resolution, font and icon size
 #ifndef TFT_RESOLUTION
@@ -27,13 +30,15 @@
 //#define DISABLE_DEBUG // free all pins
 
 // LCD Backlight pin (PWM can adjust brightness)
-#define LCD_LED_PIN            PD12
-#define LCD_LED_PIN_ALTERNATE  GPIO_AF_TIM4
-#define LCD_LED_PWM_CHANNEL    _TIM4_CH1
+#ifndef LCD_LED_PIN
+  #define LCD_LED_PIN            PD12
+  #define LCD_LED_PIN_ALTERNATE  GPIO_AF_TIM4
+  #define LCD_LED_PWM_CHANNEL    _TIM4_CH1
+#endif
 
 // SD Card SPI pins
-#define SD_SPI_SUPPORT
-#ifdef SD_SPI_SUPPORT
+#ifndef SD_SPI_SUPPORT
+  #define SD_SPI_SUPPORT
   #define SD_LOW_SPEED  7 // 2^(SPEED+1) = 256 frequency division
   #define SD_HIGH_SPEED 0 // 2 frequency division
   #define SD_SPI        _SPI1
@@ -41,7 +46,9 @@
 #endif
 
 // SD Card CD detect pin
-#define SD_CD_PIN     PC4
+#ifndef SD_CD_PIN
+  #define SD_CD_PIN     PC4
+#endif
 
 // ST7920 Simulator SPI pins
 #define ST7920_SPI    _SPI2
