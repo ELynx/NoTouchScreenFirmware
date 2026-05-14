@@ -1,5 +1,6 @@
 #include "includes.h"
 #include "GPIO_Init.h"
+#include "timer.h"
 
 #if defined(KNOB_RGB_ENABLE)
 
@@ -7,6 +8,7 @@
 #define NEOPIXEL_T0H_US 0.35  // Neopixel code 0 high level hold time in us
 #define NEOPIXEL_T1H_US 2.15  // Neopixel code 1 high level hold time in us
 uint16_t cycle, code_0_tim_h_cnt, code_1_tim_h_cnt;
+uint32_t frameTimeStamp = 0xFFFFFFFF;  // Frame unit needs >280us for WS2812.
 
 void KnobLed_Init(uint32_t PCLK1_Frequency) {
     // Init hardware pin
@@ -29,6 +31,8 @@ void KnobLed_Init(uint32_t PCLK1_Frequency) {
 }
 
 void KnobLed_Set(uint32_t color) {
+    while (frameTimeStamp == Timer_GetTimerMs());
+
     // Disable interrupt, avoid disturbing the timing of WS2812
     __disable_irq();
 
@@ -67,6 +71,8 @@ void KnobLed_Set(uint32_t color) {
 
     // Enable interrupt
     __enable_irq();
+
+    frameTimeStamp = Timer_GetTimerMs();
 }
 
 void KnobLed_On() {
