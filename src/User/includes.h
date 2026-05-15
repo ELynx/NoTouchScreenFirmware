@@ -50,18 +50,18 @@
     #error "LCD_LED_PWM_ON_BRIGHTNESS needs to be greather than LCD_LED_PWM_OFF_BRIGHTNESS"
   #endif
 #endif
-#if defined(LCD_IDLE_OFF)
+#if defined(LCD_IDLE_TIMEOUT_SEC)
   #if !LCD_ENCODER_SUPPORT
-    #error "LCD_IDLE_OFF requires encoder"
+    #error "LCD_IDLE_TIMEOUT_SEC requires encoder"
   #endif
   #if !defined(LCD_LED_PIN)
-    #error "LCD_IDLE_OFF requires LCD_LED_PIN"
+    #error "LCD_IDLE_TIMEOUT_SEC requires LCD_LED_PIN"
   #endif
 #endif
-#if defined(SPI_DATA_RECEIVED_INDICATOR) && !defined(LCD_SHOW_TITLE)
-  #error "SPI_DATA_RECEIVED_INDICATOR requires LCD_SHOW_TITLE"
+#if defined(SPI_DATA_RECEIVED_INDICATOR) && !defined(LCD_TITLE)
+  #error "SPI_DATA_RECEIVED_INDICATOR requires LCD_TITLE"
 #endif
-#if defined(KNOB_RGB_ENABLE)
+#if defined(KNOB_RGB_COLOR)
     #if !defined(KNOB_LED_COLOR_PIN)
         #error "KNOB_LED_COLOR_PIN not defined"
     #endif
@@ -73,9 +73,6 @@
     #endif
     #if !defined(WS2812_FAST_WRITE_LOW)
         #error "WS2812_FAST_WRITE_LOW not defined"
-    #endif
-    #if !defined(KNOB_RGB_COLOR)
-        #error "KNOB_RGB_COLOR not defined"
     #endif
 #endif
 #endif

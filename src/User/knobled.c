@@ -2,7 +2,7 @@
 #include "GPIO_Init.h"
 #include "timer.h"
 
-#if defined(KNOB_RGB_ENABLE)
+#if defined(KNOB_RGB_COLOR)
 
 // total 2.5us, run in 400Khz
 #define NEOPIXEL_T0H_US 0.35  // Neopixel code 0 high level hold time in us
@@ -26,7 +26,10 @@ uint32_t frameTimeStamp = 0xFFFFFFFF;  // Frame unit needs >280us for WS2812.
   #define NEOPIXEL_TIMER_CR1() TIM6->CR1
 #endif
 
+#endif // KNOB_RGB_COLOR
+
 void KnobLed_Init(uint32_t PCLK1_Frequency) {
+  #if defined(KNOB_RGB_COLOR)
     // Init hardware pin
     GPIO_InitSet(KNOB_LED_COLOR_PIN, MGPIO_MODE_OUT_PP, 0);
     GPIO_SetLevel(KNOB_LED_COLOR_PIN, 0);
@@ -44,9 +47,11 @@ void KnobLed_Init(uint32_t PCLK1_Frequency) {
 
     // Turn on knob LED
     KnobLed_On();
+  #endif
 }
 
 void KnobLed_Set(uint32_t color) {
+  #if defined(KNOB_RGB_COLOR)
     while (frameTimeStamp == Timer_GetTimerMs());
 
     // Disable interrupt, avoid disturbing the timing of WS2812
@@ -89,14 +94,17 @@ void KnobLed_Set(uint32_t color) {
     __enable_irq();
 
     frameTimeStamp = Timer_GetTimerMs();
+  #endif
 }
 
 void KnobLed_On() {
+  #if defined(KNOB_RGB_COLOR)
     KnobLed_Set(KNOB_RGB_COLOR);
+  #endif
 }
 
 void KnobLed_Off() {
+  #if defined(KNOB_RGB_COLOR)
     KnobLed_Set(0x000000);
+  #endif
 }
-
-#endif // KNOB_RGB_ENABLE

@@ -12,13 +12,10 @@
 #define LCD_TITLE_BAR_HEIGHT 8
 #define LCD_TITLE_CHAR_WIDTH 5
 #define LCD_TITLE_CHAR_STEP 6
-#if defined(LCD_SHOW_TITLE)
+#if defined(LCD_TITLE)
   #define LCD_EMULATOR_TOP_MARGIN LCD_TITLE_BAR_HEIGHT
 #else
   #define LCD_EMULATOR_TOP_MARGIN 0
-#endif
-#ifndef LCD_TITLE
-  #define LCD_TITLE ""
 #endif
 #if defined(LCD_FULLSCREEN)
   typedef float lcd_pixel_type;
@@ -47,7 +44,14 @@ static inline lcd_pixel_type min(lcd_pixel_type a, lcd_pixel_type b) {
 #define FILLRECT(X,Y,W,H,C) \
   GUI_FillRectColor(_X(X,W), _Y(Y,H), _X(X,W) + W, _Y(Y,H) + H, C);
 
-#if defined(LCD_SHOW_TITLE)
+#if LCD_ENCODER_SUPPORT && (defined(SPI_RESTART_KNOB_PRESS_DURATION_SEC) || defined(LCD_IDLE_TIMEOUT_SEC))
+  #define LCD_ENCODER_POLLING
+#endif
+#if defined(KNOB_RGB_COLOR) || defined(LCD_ENCODER_POLLING)
+  #define LCD_TIMER_TICK
+#endif
+
+#if defined(LCD_TITLE)
 static void getTitleGlyph(char c, uint8_t glyph[5]) {
   #define SET_GLYPH(A,B,C,D,E) do { glyph[0] = (A); glyph[1] = (B); glyph[2] = (C); glyph[3] = (D); glyph[4] = (E); return; } while (0)
 
@@ -271,8 +275,13 @@ int main(void)
   // Init LCD
   LCD_Init(&rccClocks, LCD_COLOR_BACKGROUND);
 
+  // Init timer tick
+#if defined(LCD_TIMER_TICK)
+  Timer_Init(&rccClocks);
+#endif
+
   // Init knob LED
-#if defined(KNOB_RGB_ENABLE)
+#if defined(KNOB_RGB_COLOR)
   KnobLed_Init(rccClocks.PCLK1_Frequency);
 #endif
 
@@ -298,31 +307,24 @@ int main(void)
   CIRCULAR_QUEUE spiQueue;
   SPI_Slave(&spiQueue);
 
-  // Init encoder
+#if defined(LCD_ENCODER_POLLING)
   Encoder_Init();
-
-  // Check for encoder support
-#if LCD_ENCODER_SUPPORT
-  // Init timer
-  Timer_Init(&rccClocks);
-
-  // Loop variables
-  uint8_t ui8CurrentEncoder;
-  uint32_t ui32CurrentMs;
-  uint32_t ui32FirstBtnPress = 0;
-  uint32_t ui32Tmp;
 #endif
 
-  // Check if lcd idle off is enabled
-#if defined(LCD_IDLE_OFF)
-  // Loop veriables
+  // Variables for SPI restart by long knob press
+#if defined(LCD_ENCODER_POLLING) && defined(SPI_RESTART_KNOB_PRESS_DURATION_SEC)
+  uint32_t ui32FirstBtnPress = 0;
+#endif
+
+  // Variables for lcd idle off
+#if defined(LCD_ENCODER_POLLING) && defined(LCD_IDLE_TIMEOUT_SEC)
   bool bScreenOn = true;
   uint8_t ui8LastEncoder = 0;
   uint32_t ui32LastActive = 0;
 #endif
 
   // Variables for SPI data received indicator
-#if defined(SPI_DATA_RECEIVED_INDICATOR) && defined(LCD_SHOW_TITLE)
+#if defined(SPI_DATA_RECEIVED_INDICATOR) && defined(LCD_TITLE)
   uint16_t ui16TitleX = titleStartX(LCD_TITLE);
   uint16_t ui16TitleEnd = ui16TitleX + titleTextWidth(LCD_TITLE);
   bool bSpiDataIndicator = ui16TitleX > 2;
@@ -341,7 +343,7 @@ int main(void)
       st7920Emulator.parseSerialData(data);
 
       // Update SPI data received indicator
-#if defined(SPI_DATA_RECEIVED_INDICATOR) && defined(LCD_SHOW_TITLE)
+#if defined(SPI_DATA_RECEIVED_INDICATOR) && defined(LCD_TITLE)
       if (bSpiDataIndicator) {
         // Draw new pixel
         FILLRECT(ui16DX, ui16DY, 1, 1, ui16DColor);
@@ -371,7 +373,7 @@ int main(void)
     }
 
     // Update SPI activation display
-#if defined(SPI_DATA_RECEIVED_INDICATOR) && defined(LCD_SHOW_TITLE)
+#if defined(SPI_DATA_RECEIVED_INDICATOR) && defined(LCD_TITLE)
     if (bSpiActivityIndicator) {
       while (ui32LastSpiActivated < ui32SpiActivated) {
         // Draw new pixel
@@ -406,13 +408,14 @@ int main(void)
     }
 #endif
 
-#if LCD_ENCODER_SUPPORT
+#if defined(LCD_ENCODER_POLLING)
     // Read current encoder value
-    ui8CurrentEncoder = Encoder_Read();
+    uint8_t ui8CurrentEncoder = Encoder_Read();
 
     // Get current time
-    ui32CurrentMs = Timer_GetTimerMs();
+    uint32_t ui32CurrentMs = Timer_GetTimerMs();
 
+#if defined(SPI_RESTART_KNOB_PRESS_DURATION_SEC)
     // Check if encoder button is pressed
     if ((ui8CurrentEncoder & LCD_ENCODER_BTN_SET) > 0) {
       // Check if we need to store the current timestamp
@@ -425,15 +428,15 @@ int main(void)
         }
       }
     } else if (ui32FirstBtnPress > 0) {
-      // Get difference to last active timestamp
+      // Get difference to button press timestamp
+      uint32_t ui32BtnPressDuration;
       if (ui32CurrentMs >= ui32FirstBtnPress) {
-        ui32Tmp = ui32CurrentMs - ui32FirstBtnPress;
+        ui32BtnPressDuration = ui32CurrentMs - ui32FirstBtnPress;
       } else {
-        ui32Tmp = 0xFFFFFFFF - ui32FirstBtnPress + ui32CurrentMs + 1;
+        ui32BtnPressDuration = 0xFFFFFFFF - ui32FirstBtnPress + ui32CurrentMs + 1;
       }
 
-      // Check if timeout has been expired
-      if (ui32Tmp >= SPI_RESTART_KNOB_PRESS_DURATION * 1000) {
+      if (ui32BtnPressDuration >= SPI_RESTART_KNOB_PRESS_DURATION_SEC * 1000UL) {
         // Turn off backlight
         #ifdef LCD_LED_PIN
           LCD_LED_Off();
@@ -454,7 +457,7 @@ int main(void)
         #endif
 
         // Turn on knob LED
-        #ifdef KNOB_RGB_ENABLE
+        #ifdef KNOB_RGB_COLOR
           KnobLed_On();
         #endif
 
@@ -462,13 +465,13 @@ int main(void)
         st7920Emulator.reset(true);
       }
 
-      // Clear falg
+      // Clear flag
       ui32FirstBtnPress = 0;
     }
-#endif
+#endif // SPI_RESTART_KNOB_PRESS_DURATION_SEC
 
     // Check if lcd idle off is enabled
-#if defined(LCD_IDLE_OFF)
+#if defined(LCD_IDLE_TIMEOUT_SEC)
     // Compare to last value
     if (ui8CurrentEncoder != ui8LastEncoder) {
       // Store current value
@@ -480,7 +483,7 @@ int main(void)
         LCD_LED_On();
 
         // Turn on knob LED
-        #ifdef KNOB_RGB_ENABLE
+        #ifdef KNOB_RGB_COLOR
           KnobLed_On();
         #endif
 
@@ -494,19 +497,20 @@ int main(void)
     // Check if screen is on
     else if (bScreenOn) {
       // Get difference to last active timestamp
+      uint32_t ui32IdleDuration;
       if (ui32CurrentMs >= ui32LastActive) {
-        ui32Tmp = ui32CurrentMs - ui32LastActive;
+        ui32IdleDuration = ui32CurrentMs - ui32LastActive;
       } else {
-        ui32Tmp = 0xFFFFFFFF - ui32LastActive + ui32CurrentMs + 1;
+        ui32IdleDuration = 0xFFFFFFFF - ui32LastActive + ui32CurrentMs + 1;
       }
 
       // Check inactivity time
-      if (ui32Tmp >= LCD_IDLE_TIMEOUT_SEC * 1000) {
+      if (ui32IdleDuration >= LCD_IDLE_TIMEOUT_SEC * 1000UL) {
         // Turn off screen
         LCD_LED_Off();
 
         // Turn off knob LED
-        #ifdef KNOB_RGB_ENABLE
+        #ifdef KNOB_RGB_COLOR
           KnobLed_Off();
         #endif
 
@@ -514,6 +518,8 @@ int main(void)
         bScreenOn = false;
       }
     }
-#endif
+#endif // LCD_IDLE_TIMEOUT_SEC
+
+#endif // LCD_ENCODER_POLLING
   }
 }
