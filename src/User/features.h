@@ -7,6 +7,12 @@
 // Enable fullscreen mode
 #define LCD_FULLSCREEN
 
+// Show custom title above the emulated LCD area. Disable for true fullscreen.
+#define LCD_SHOW_TITLE
+#if !defined(LCD_TITLE)
+    #define LCD_TITLE "NoTouchFw v1.3.1"
+#endif
+
 // Mirror screen horizontally
 //#define LCD_MIRROR_HORIZONTALLY
 
@@ -35,7 +41,7 @@
     #define LCD_LED_PWM_OFF_BRIGHTNESS 2
 #endif
 
-// Enable SPI data received indicator
+// Enable SPI data received indicator in the title bar
 //#define SPI_DATA_RECEIVED_INDICATOR
 
 // Rotary knob long press duration for SPI restart

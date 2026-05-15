@@ -58,6 +58,9 @@
     #error "LCD_IDLE_OFF requires LCD_LED_PIN"
   #endif
 #endif
+#if defined(SPI_DATA_RECEIVED_INDICATOR) && !defined(LCD_SHOW_TITLE)
+  #error "SPI_DATA_RECEIVED_INDICATOR requires LCD_SHOW_TITLE"
+#endif
 #if defined(KNOB_RGB_ENABLE)
     #if !defined(KNOB_LED_COLOR_PIN)
         #error "KNOB_LED_COLOR_PIN not defined"
