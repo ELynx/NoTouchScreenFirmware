@@ -5,17 +5,34 @@
 #include "timer.h"
 #include "GPIO_Init.h"
 
+#define private public
 #include "St7920Emulator.hpp"
+#undef private
 
 #define ST7920_GXROWS 128.0
 #define ST7920_GYROWS 64.0
-#define LCD_TITLE_BAR_HEIGHT 8
-#define LCD_TITLE_CHAR_WIDTH 5
-#define LCD_TITLE_CHAR_STEP 6
-#if defined(LCD_TITLE)
+#define LCD_TEXT_CHAR_WIDTH 8
+#define LCD_TEXT_CHAR_STEP 8
+#define LCD_TEXT_FONT_HEIGHT 16
+#define LCD_TEXT_LINE_HEIGHT 16
+#define LCD_TITLE_BAR_HEIGHT (LCD_TEXT_FONT_HEIGHT + 1)
+#ifndef LCD_SD_TEXT_FILE
+  #define LCD_SD_TEXT_FILE "Psalter.txt"
+#endif
+#ifndef LCD_SD_TEXT_DELAY_SEC
+  #define LCD_SD_TEXT_DELAY_SEC 5UL
+#endif
+#define LCD_SD_TEXT_RETRY_MS 10000UL
+#define LCD_SD_TEXT_MAX_CHARS 128
+#if defined(LCD_SD_TEXT_OVERLAY)
   #define LCD_EMULATOR_TOP_MARGIN LCD_TITLE_BAR_HEIGHT
+  #define LCD_EMULATOR_BOTTOM_MARGIN LCD_TEXT_LINE_HEIGHT
+#elif defined(LCD_TITLE)
+  #define LCD_EMULATOR_TOP_MARGIN LCD_TITLE_BAR_HEIGHT
+  #define LCD_EMULATOR_BOTTOM_MARGIN 0
 #else
   #define LCD_EMULATOR_TOP_MARGIN 0
+  #define LCD_EMULATOR_BOTTOM_MARGIN 0
 #endif
 #if defined(LCD_FULLSCREEN)
   typedef float lcd_pixel_type;
@@ -47,134 +64,59 @@ static inline lcd_pixel_type min(lcd_pixel_type a, lcd_pixel_type b) {
 #if LCD_ENCODER_SUPPORT && (defined(SPI_RESTART_KNOB_PRESS_DURATION_SEC) || defined(LCD_IDLE_TIMEOUT_SEC))
   #define LCD_ENCODER_POLLING
 #endif
-#if defined(KNOB_RGB_COLOR) || defined(LCD_ENCODER_POLLING)
+#if defined(KNOB_RGB_COLOR) || defined(LCD_ENCODER_POLLING) || defined(LCD_SD_TEXT_OVERLAY)
   #define LCD_TIMER_TICK
 #endif
 
-#if defined(LCD_TITLE)
-static void getTitleGlyph(char c, uint8_t glyph[5]) {
-  #define SET_GLYPH(A,B,C,D,E) do { glyph[0] = (A); glyph[1] = (B); glyph[2] = (C); glyph[3] = (D); glyph[4] = (E); return; } while (0)
-
-  switch (c) {
-    case ' ': SET_GLYPH(0x00, 0x00, 0x00, 0x00, 0x00);
-    case '!': SET_GLYPH(0x00, 0x00, 0x5F, 0x00, 0x00);
-    case '.': SET_GLYPH(0x00, 0x60, 0x60, 0x00, 0x00);
-    case '-': SET_GLYPH(0x08, 0x08, 0x08, 0x08, 0x08);
-    case '_': SET_GLYPH(0x40, 0x40, 0x40, 0x40, 0x40);
-    case ':': SET_GLYPH(0x00, 0x36, 0x36, 0x00, 0x00);
-    case '/': SET_GLYPH(0x20, 0x10, 0x08, 0x04, 0x02);
-    case '+': SET_GLYPH(0x08, 0x08, 0x3E, 0x08, 0x08);
-
-    case '0': SET_GLYPH(0x3E, 0x51, 0x49, 0x45, 0x3E);
-    case '1': SET_GLYPH(0x00, 0x42, 0x7F, 0x40, 0x00);
-    case '2': SET_GLYPH(0x42, 0x61, 0x51, 0x49, 0x46);
-    case '3': SET_GLYPH(0x22, 0x49, 0x49, 0x49, 0x36);
-    case '4': SET_GLYPH(0x18, 0x14, 0x12, 0x7F, 0x10);
-    case '5': SET_GLYPH(0x27, 0x45, 0x45, 0x45, 0x39);
-    case '6': SET_GLYPH(0x3C, 0x4A, 0x49, 0x49, 0x30);
-    case '7': SET_GLYPH(0x01, 0x71, 0x09, 0x05, 0x03);
-    case '8': SET_GLYPH(0x36, 0x49, 0x49, 0x49, 0x36);
-    case '9': SET_GLYPH(0x06, 0x49, 0x49, 0x29, 0x1E);
-
-    case 'A': SET_GLYPH(0x7E, 0x11, 0x11, 0x11, 0x7E);
-    case 'B': SET_GLYPH(0x7F, 0x49, 0x49, 0x49, 0x36);
-    case 'C': SET_GLYPH(0x3E, 0x41, 0x41, 0x41, 0x22);
-    case 'D': SET_GLYPH(0x7F, 0x41, 0x41, 0x22, 0x1C);
-    case 'E': SET_GLYPH(0x7F, 0x49, 0x49, 0x49, 0x41);
-    case 'F': SET_GLYPH(0x7F, 0x09, 0x09, 0x09, 0x01);
-    case 'G': SET_GLYPH(0x3E, 0x41, 0x49, 0x49, 0x7A);
-    case 'H': SET_GLYPH(0x7F, 0x08, 0x08, 0x08, 0x7F);
-    case 'I': SET_GLYPH(0x00, 0x41, 0x7F, 0x41, 0x00);
-    case 'J': SET_GLYPH(0x20, 0x40, 0x41, 0x3F, 0x01);
-    case 'K': SET_GLYPH(0x7F, 0x08, 0x14, 0x22, 0x41);
-    case 'L': SET_GLYPH(0x7F, 0x40, 0x40, 0x40, 0x40);
-    case 'M': SET_GLYPH(0x7F, 0x02, 0x0C, 0x02, 0x7F);
-    case 'N': SET_GLYPH(0x7F, 0x02, 0x04, 0x08, 0x7F);
-    case 'O': SET_GLYPH(0x3E, 0x41, 0x41, 0x41, 0x3E);
-    case 'P': SET_GLYPH(0x7F, 0x09, 0x09, 0x09, 0x06);
-    case 'Q': SET_GLYPH(0x3E, 0x41, 0x51, 0x21, 0x5E);
-    case 'R': SET_GLYPH(0x7F, 0x09, 0x19, 0x29, 0x46);
-    case 'S': SET_GLYPH(0x46, 0x49, 0x49, 0x49, 0x31);
-    case 'T': SET_GLYPH(0x01, 0x01, 0x7F, 0x01, 0x01);
-    case 'U': SET_GLYPH(0x3F, 0x40, 0x40, 0x40, 0x3F);
-    case 'V': SET_GLYPH(0x1F, 0x20, 0x40, 0x20, 0x1F);
-    case 'W': SET_GLYPH(0x3F, 0x40, 0x38, 0x40, 0x3F);
-    case 'X': SET_GLYPH(0x63, 0x14, 0x08, 0x14, 0x63);
-    case 'Y': SET_GLYPH(0x07, 0x08, 0x70, 0x08, 0x07);
-    case 'Z': SET_GLYPH(0x61, 0x51, 0x49, 0x45, 0x43);
-
-    case 'a': SET_GLYPH(0x20, 0x54, 0x54, 0x54, 0x78);
-    case 'b': SET_GLYPH(0x7F, 0x48, 0x44, 0x44, 0x38);
-    case 'c': SET_GLYPH(0x38, 0x44, 0x44, 0x44, 0x28);
-    case 'd': SET_GLYPH(0x38, 0x44, 0x44, 0x48, 0x7F);
-    case 'e': SET_GLYPH(0x38, 0x54, 0x54, 0x54, 0x18);
-    case 'f': SET_GLYPH(0x08, 0x7E, 0x09, 0x01, 0x02);
-    case 'g': SET_GLYPH(0x08, 0x14, 0x54, 0x54, 0x3C);
-    case 'h': SET_GLYPH(0x7F, 0x04, 0x04, 0x78, 0x00);
-    case 'i': SET_GLYPH(0x00, 0x44, 0x7D, 0x40, 0x00);
-    case 'j': SET_GLYPH(0x20, 0x40, 0x44, 0x3D, 0x00);
-    case 'k': SET_GLYPH(0x7F, 0x10, 0x28, 0x44, 0x00);
-    case 'l': SET_GLYPH(0x00, 0x41, 0x7F, 0x40, 0x00);
-    case 'm': SET_GLYPH(0x7C, 0x04, 0x18, 0x04, 0x78);
-    case 'n': SET_GLYPH(0x7C, 0x08, 0x04, 0x04, 0x78);
-    case 'o': SET_GLYPH(0x38, 0x44, 0x44, 0x44, 0x38);
-    case 'p': SET_GLYPH(0x7C, 0x14, 0x14, 0x14, 0x08);
-    case 'q': SET_GLYPH(0x08, 0x14, 0x14, 0x18, 0x7C);
-    case 'r': SET_GLYPH(0x7C, 0x08, 0x04, 0x04, 0x08);
-    case 's': SET_GLYPH(0x48, 0x54, 0x54, 0x54, 0x20);
-    case 't': SET_GLYPH(0x04, 0x3F, 0x44, 0x40, 0x20);
-    case 'u': SET_GLYPH(0x3C, 0x40, 0x20, 0x7C, 0x00);
-    case 'v': SET_GLYPH(0x1F, 0x20, 0x40, 0x20, 0x1F);
-    case 'w': SET_GLYPH(0x3C, 0x60, 0x30, 0x60, 0x3C);
-    case 'x': SET_GLYPH(0x44, 0x28, 0x10, 0x28, 0x44);
-    case 'y': SET_GLYPH(0x0C, 0x50, 0x50, 0x50, 0x3C);
-    case 'z': SET_GLYPH(0x44, 0x64, 0x54, 0x4C, 0x44);
+static uint8_t normalizeTextChar(char c) {
+  uint8_t glyphChar = (uint8_t)c;
+  if (glyphChar == 0 || glyphChar > 0x7F) {
+    return '?';
   }
-
-  SET_GLYPH(0x02, 0x01, 0x51, 0x09, 0x06);
-  #undef SET_GLYPH
+  return glyphChar;
 }
-static uint16_t titleTextWidth(const char *text) {
-  uint16_t len = 0;
-  while (text[len] != '\0') {
-    ++len;
+static uint16_t textWidth(const char *text) {
+  uint16_t width = 0;
+  while (*text != '\0' && width < LCD_WIDTH) {
+    width += LCD_TEXT_CHAR_STEP;
+    ++text;
   }
-
-  uint32_t width = (uint32_t)len * LCD_TITLE_CHAR_STEP;
-  if (width > LCD_WIDTH) {
-    return LCD_WIDTH;
-  }
-  return width;
+  return width > LCD_WIDTH ? LCD_WIDTH : width;
 }
-static uint16_t titleStartX(const char *text) {
-  uint16_t width = titleTextWidth(text);
+static uint16_t centeredTextX(const char *text) {
+  uint16_t width = textWidth(text);
   if (LCD_WIDTH <= width) {
     return 0;
   }
   return (LCD_WIDTH - width) / 2;
 }
-static void drawTitleText(const char *text, uint16_t x, uint16_t y) {
-  uint8_t glyph[LCD_TITLE_CHAR_WIDTH];
-
-  while (*text != '\0' && x + LCD_TITLE_CHAR_WIDTH <= LCD_WIDTH) {
-    getTitleGlyph(*text, glyph);
-    for (uint8_t col = 0; col < LCD_TITLE_CHAR_WIDTH; ++col) {
-      for (uint8_t row = 0; row < 7; ++row) {
-        if ((glyph[col] & (1 << row)) > 0) {
+static void drawTextLine(const char *text, uint16_t x, uint16_t y) {
+  while (*text != '\0' && x + LCD_TEXT_CHAR_WIDTH <= LCD_WIDTH) {
+    uint16_t charIndex = ((uint16_t)normalizeTextChar(*text) - 1) * LCD_TEXT_FONT_HEIGHT;
+    for (uint8_t row = 0; row < LCD_TEXT_FONT_HEIGHT; ++row) {
+      uint8_t rowBits = St7920Emulator::pFont816[charIndex + row];
+      for (uint8_t col = 0; col < LCD_TEXT_CHAR_WIDTH; ++col) {
+        if ((rowBits & (1 << col)) > 0) {
           FILLRECT(x + col, y + row, 1, 1, LCD_COLOR_FOREGROUND);
         }
       }
     }
-    x += LCD_TITLE_CHAR_STEP;
+    x += LCD_TEXT_CHAR_STEP;
     ++text;
   }
 }
-static void drawTitleBar(void) {
-  uint16_t titleX = titleStartX(LCD_TITLE);
-  uint16_t titleWidth = titleTextWidth(LCD_TITLE);
+#if defined(LCD_TITLE) || defined(LCD_SD_TEXT_OVERLAY)
+static void drawTitleBarText(const char *text) {
+  uint16_t titleX = centeredTextX(text);
+  uint16_t titleWidth = textWidth(text);
   uint16_t titleEnd = titleX + titleWidth;
 
-  drawTitleText(LCD_TITLE, titleX, 0);
+  if (titleWidth == 0) {
+    FILLRECT(0, LCD_TITLE_BAR_HEIGHT - 1, LCD_WIDTH, 1, LCD_COLOR_FOREGROUND);
+    return;
+  }
+
+  drawTextLine(text, titleX, 0);
 
   if (titleX > 1) {
     FILLRECT(0, LCD_TITLE_BAR_HEIGHT - 1, titleX - 1, 1, LCD_COLOR_FOREGROUND);
@@ -184,7 +126,185 @@ static void drawTitleBar(void) {
   }
 }
 #else
-static inline void drawTitleBar(void) {}
+static inline void drawTitleBarText(const char *text) { (void)text; }
+#endif
+
+#if defined(LCD_SD_TEXT_OVERLAY)
+static bool msElapsed(uint32_t currentMs, uint32_t targetMs) {
+  return ((int32_t)(currentMs - targetMs)) >= 0;
+}
+
+static uint16_t st7920BottomY(void) {
+  lcd_pixel_type bottom = st7920StartY + st7920PixelSize * ST7920_GYROWS;
+  if (bottom >= LCD_HEIGHT) {
+    return LCD_HEIGHT;
+  }
+  return (uint16_t)(bottom + 0.999f);
+}
+
+static void clearTextBand(uint16_t y) {
+  uint16_t h = LCD_TEXT_LINE_HEIGHT;
+  if (y + h > LCD_HEIGHT) {
+    h = LCD_HEIGHT - y;
+  }
+  if (h > 0) {
+    uint16_t sy = _Y(y, h);
+    GUI_FillRectColor(0, sy, LCD_WIDTH, sy + h, LCD_COLOR_BACKGROUND);
+  }
+}
+
+static bool bottomTextY(uint16_t *y) {
+  uint16_t bottom = st7920BottomY();
+  if (bottom + LCD_TEXT_FONT_HEIGHT > LCD_HEIGHT) {
+    return false;
+  }
+
+  uint16_t margin = LCD_HEIGHT - bottom;
+  *y = bottom + (margin - LCD_TEXT_FONT_HEIGHT) / 2;
+  return true;
+}
+
+static FIL sdTextFile;
+static bool bSdTextFileOpen = false;
+static bool bSdTextTitleCached = false;
+static FSIZE_t uiSdTextScrollStart = 0;
+static uint32_t ui32SdTextNextMs = 0;
+static char pSdTextTitle[LCD_SD_TEXT_MAX_CHARS];
+static char pSdTextLine[LCD_SD_TEXT_MAX_CHARS];
+
+static void closeSdTextFile(void) {
+  if (bSdTextFileOpen) {
+    f_close(&sdTextFile);
+    bSdTextFileOpen = false;
+  }
+}
+
+static bool readSdTextLine(char *line, uint16_t lineSize) {
+  if (lineSize < 2) {
+    return false;
+  }
+
+  uint16_t pos = 0;
+  bool readAny = false;
+
+  while (true) {
+    char c;
+    UINT br = 0;
+    FRESULT result = f_read(&sdTextFile, &c, 1, &br);
+    if (result != FR_OK) {
+      return false;
+    }
+    if (br != 1) {
+      break;
+    }
+
+    readAny = true;
+    if (c == '\n') {
+      break;
+    }
+    if (c == '\r') {
+      continue;
+    }
+    if (c == '\t' || (uint8_t)c < ' ') {
+      c = ' ';
+    }
+    if (pos < lineSize - 1) {
+      line[pos++] = c;
+    }
+  }
+
+  line[pos] = '\0';
+  return readAny;
+}
+
+static bool seekSdTextScrollStart(void) {
+  if (f_lseek(&sdTextFile, uiSdTextScrollStart) != FR_OK) {
+    closeSdTextFile();
+    return false;
+  }
+  return true;
+}
+
+static bool prepareSdTextFile(bool bSdMounted) {
+  if (!bSdMounted) {
+    return false;
+  }
+
+  if (!bSdTextFileOpen) {
+    bSdTextFileOpen = (f_open(&sdTextFile, LCD_SD_TEXT_FILE, FA_OPEN_EXISTING | FA_READ) == FR_OK);
+    if (!bSdTextFileOpen) {
+      return false;
+    }
+
+    if (bSdTextTitleCached) {
+      return seekSdTextScrollStart();
+    }
+  }
+
+  if (!bSdTextTitleCached) {
+    if (!readSdTextLine(pSdTextTitle, sizeof(pSdTextTitle))) {
+      pSdTextTitle[0] = '\0';
+      closeSdTextFile();
+      return false;
+    }
+    uiSdTextScrollStart = f_tell(&sdTextFile);
+    bSdTextTitleCached = true;
+  }
+
+  return true;
+}
+
+static bool initSdTextOverlay(bool bSdMounted) {
+  pSdTextTitle[0] = '\0';
+  uiSdTextScrollStart = 0;
+  bSdTextTitleCached = false;
+  return prepareSdTextFile(bSdMounted);
+}
+
+static bool nextSdTextLine(char *line, uint16_t lineSize) {
+  if (readSdTextLine(line, lineSize)) {
+    return true;
+  }
+
+  if (!seekSdTextScrollStart()) {
+    return false;
+  }
+  return readSdTextLine(line, lineSize);
+}
+
+static void updateSdTextOverlay(bool bSdMounted, uint32_t currentMs) {
+  if (!msElapsed(currentMs, ui32SdTextNextMs)) {
+    return;
+  }
+
+  uint16_t y;
+  if (!bottomTextY(&y)) {
+    ui32SdTextNextMs = currentMs + LCD_SD_TEXT_RETRY_MS;
+    return;
+  }
+
+  bool bTitleWasCached = bSdTextTitleCached;
+  if (!prepareSdTextFile(bSdMounted)) {
+    clearTextBand(y);
+    closeSdTextFile();
+    ui32SdTextNextMs = currentMs + LCD_SD_TEXT_RETRY_MS;
+    return;
+  }
+  if (!bTitleWasCached) {
+    drawTitleBarText(pSdTextTitle);
+  }
+
+  if (!nextSdTextLine(pSdTextLine, sizeof(pSdTextLine))) {
+    clearTextBand(y);
+    closeSdTextFile();
+    ui32SdTextNextMs = currentMs + LCD_SD_TEXT_RETRY_MS;
+    return;
+  }
+
+  clearTextBand(y);
+  drawTextLine(pSdTextLine, 0, y);
+  ui32SdTextNextMs = currentMs + LCD_SD_TEXT_DELAY_SEC * 1000UL;
+}
 #endif
 
 void clearDisplay() {
@@ -249,7 +369,8 @@ int main(void)
   #endif
 
   // Mount SD card
-  if(mountSDCard())
+  bool bSdMounted = mountSDCard();
+  if(bSdMounted)
   {
     // Check if firmware binary exists
     if (f_file_exists(FIRMWARE_NAME ".bin"))
@@ -286,11 +407,16 @@ int main(void)
 #endif
 
   // Calculate ST7920 screen dimensions
-  st7920PixelSize = min(LCD_WIDTH / ST7920_GXROWS, (LCD_HEIGHT - LCD_EMULATOR_TOP_MARGIN) / ST7920_GYROWS);
+  st7920PixelSize = min(LCD_WIDTH / ST7920_GXROWS, (LCD_HEIGHT - LCD_EMULATOR_TOP_MARGIN - LCD_EMULATOR_BOTTOM_MARGIN) / ST7920_GYROWS);
   st7920StartX = (LCD_WIDTH - st7920PixelSize * ST7920_GXROWS) / 2;
-  st7920StartY = LCD_EMULATOR_TOP_MARGIN + (LCD_HEIGHT - LCD_EMULATOR_TOP_MARGIN - st7920PixelSize * ST7920_GYROWS) / 2;
+  st7920StartY = LCD_EMULATOR_TOP_MARGIN + (LCD_HEIGHT - LCD_EMULATOR_TOP_MARGIN - LCD_EMULATOR_BOTTOM_MARGIN - st7920PixelSize * ST7920_GYROWS) / 2;
 
-  drawTitleBar();
+#if defined(LCD_SD_TEXT_OVERLAY)
+  initSdTextOverlay(bSdMounted);
+  drawTitleBarText(pSdTextTitle);
+#elif defined(LCD_TITLE)
+  drawTitleBarText(LCD_TITLE);
+#endif
 
   // Create emulator handle
   St7920Emulator st7920Emulator(clearDisplay, drawByte);
@@ -325,8 +451,8 @@ int main(void)
 
   // Variables for SPI data received indicator
 #if defined(SPI_DATA_RECEIVED_INDICATOR) && defined(LCD_TITLE)
-  uint16_t ui16TitleX = titleStartX(LCD_TITLE);
-  uint16_t ui16TitleEnd = ui16TitleX + titleTextWidth(LCD_TITLE);
+  uint16_t ui16TitleX = centeredTextX(LCD_TITLE);
+  uint16_t ui16TitleEnd = ui16TitleX + textWidth(LCD_TITLE);
   bool bSpiDataIndicator = ui16TitleX > 2;
   bool bSpiActivityIndicator = (ui16TitleEnd + 10) < LCD_WIDTH;
   uint16_t ui16DX = 0, ui16DY = 0, ui16AX = ui16TitleEnd, ui16AY = 0;
@@ -521,5 +647,9 @@ int main(void)
 #endif // LCD_IDLE_TIMEOUT_SEC
 
 #endif // LCD_ENCODER_POLLING
+
+#if defined(LCD_SD_TEXT_OVERLAY)
+    updateSdTextOverlay(bSdMounted, Timer_GetTimerMs());
+#endif
   }
 }

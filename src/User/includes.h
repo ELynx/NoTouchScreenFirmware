@@ -58,6 +58,9 @@
     #error "LCD_IDLE_TIMEOUT_SEC requires LCD_LED_PIN"
   #endif
 #endif
+#if defined(LCD_SD_TEXT_OVERLAY) && defined(LCD_TITLE)
+  #error "LCD_TITLE cannot be defined when LCD_SD_TEXT_OVERLAY is enabled"
+#endif
 #if defined(SPI_DATA_RECEIVED_INDICATOR) && !defined(LCD_TITLE)
   #error "SPI_DATA_RECEIVED_INDICATOR requires LCD_TITLE"
 #endif

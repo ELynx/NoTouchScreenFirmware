@@ -9,7 +9,15 @@
 
 // Custom title above the emulated LCD area.
 // Leave undefined for true fullscreen.
+// Cannot be combined with LCD_SD_TEXT_OVERLAY.
 #define LCD_TITLE "NoTouchFw v1.3.1"
+
+// Show one line from a text file below the emulated LCD area.
+// First line is used as the title. Remaining lines are looped below the
+// emulated LCD area with LCD_SD_TEXT_DELAY_SEC between changes.
+//#define LCD_SD_TEXT_OVERLAY
+//#define LCD_SD_TEXT_FILE "Psalter.txt"
+//#define LCD_SD_TEXT_DELAY_SEC 5UL
 
 // Mirror screen horizontally
 //#define LCD_MIRROR_HORIZONTALLY
