@@ -7,18 +7,6 @@
 // Enable fullscreen mode
 #define LCD_FULLSCREEN
 
-// Custom title above the emulated LCD area.
-// Leave undefined for true fullscreen.
-// Cannot be combined with LCD_SD_TEXT_OVERLAY.
-#define LCD_TITLE "NoTouchFw v1.3.1"
-
-// Show one line from a text file below the emulated LCD area.
-// First line is used as the title. Remaining lines are looped below the
-// emulated LCD area with LCD_SD_TEXT_DELAY_SEC between changes.
-//#define LCD_SD_TEXT_OVERLAY
-//#define LCD_SD_TEXT_FILE "Psalter.txt"
-//#define LCD_SD_TEXT_DELAY_SEC 5UL
-
 // Mirror screen horizontally
 //#define LCD_MIRROR_HORIZONTALLY
 
@@ -32,8 +20,8 @@
     #define LCD_MIRROR_VERTICALLY
 #endif
 
-// LCD backlight idle timeout in seconds.
-// Leave undefined to disable idle off.
+// LCD backlight idle timeout in seconds
+// Leave undefined to disable idle off
 //#define LCD_IDLE_TIMEOUT_SEC 5
 
 // Enable LCD backlight being controlled by PWM
@@ -48,10 +36,28 @@
 // Enable SPI data received indicator in the title bar
 //#define SPI_DATA_RECEIVED_INDICATOR
 
-// Rotary knob long press duration in seconds for SPI restart.
-// Leave undefined to disable the reset cycle.
+// Rotary knob long press duration in seconds for SPI restart
+// Leave undefined to disable the reset cycle
 #define SPI_RESTART_KNOB_PRESS_DURATION_SEC 3
 
-// Knob GRB color.
-// Leave undefined to disable knob RGB led.
+// Knob GRB color
+// Leave undefined to disable knob RGB led
 //#define KNOB_RGB_COLOR 0xFFFFFF
+
+// Custom title above the emulated LCD area
+// Leave undefined for no fixed title band
+// Cannot be combined with LCD_SD_TEXT_FILE
+#define LCD_TITLE "NoTouchFw v1.3.1"
+
+// Show one line from a text file below the emulated LCD area
+// First line is used as the title. Remaining lines are looped below the
+// emulated LCD area with LCD_SD_TEXT_DELAY_SEC between changes
+//#define LCD_SD_TEXT_FILE "Psalter.txt"
+//#define LCD_SD_TEXT_DELAY_SEC 5
+
+// Detect the Marlin _Statusscreen.h logo marker and play raw RGB565 frames
+// from this SD card folder while Marlin is on the DOGM status/info screen
+// Files are named LCD_SD_LOGO_FOLDER/0.frb, LCD_SD_LOGO_FOLDER/1.frb, ...
+// and each frame is row-major little-endian RGB565 for the detected logical logo rect
+//#define LCD_SD_LOGO_FOLDER "Ikonen"
+//#define LCD_SD_LOGO_DELAY_MS 1000
