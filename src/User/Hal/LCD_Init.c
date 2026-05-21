@@ -483,9 +483,9 @@ void LCD_init_RGB(void)
 
 #endif
 
-uint16_t LCD_ReadID(void)
+u16 LCD_ReadID(void)
 {
-  uint16_t id = 0;
+  u16 id = 0;
   LCD_WR_REG(0XD3);
   id = LCD_RD_DATA();	//dummy read
   id = LCD_RD_DATA();

@@ -4,7 +4,7 @@
 #include "sd.h"
 #include "GPIO_Init.h"
 
-uint8_t  SD_Type=0;  //SDCard type
+u8  SD_Type=0;  //SDCard type
 
 /***************************************** SD SPI Interface ported by the underlying pattern***********************************************/
 //#define SD_SPI _SPI1
@@ -12,13 +12,13 @@ uint8_t  SD_Type=0;  //SDCard type
 //#define SD_HIGH_SPEED 1
 
 //Read and write functions
-uint8_t SD_SPI_Read_Write_Byte(uint8_t data)
+u8 SD_SPI_Read_Write_Byte( u8 data)
 {
   return SPI_Read_Write(SD_SPI,data);
 }
 
 //Chip Select
-void SD_SPI_CS_Set(uint8_t level)
+void SD_SPI_CS_Set(u8 level)
 {
   GPIO_SetLevel(SD_CS_PIN, level);
 }
@@ -31,7 +31,7 @@ void SD_CD_WP_Init(void)
 }
 #endif
 
-uint8_t SD_CD_Inserted(void)
+u8 SD_CD_Inserted(void)
 {
 #ifdef SD_CD_PIN
   return !GPIO_GetLevel(SD_CD_PIN);
@@ -84,7 +84,7 @@ void SD_Cancel_CS(void)
 **Select the SD card and wait for the card to be ready
 **Return value: 0, success; 1, failure;
 *************************************************************************************/
-uint8_t SD_Select(void)
+u8 SD_Select(void)
 {
   SD_SPI_CS_Set(0);
   if(SD_Wait_Ready()==0)return 0;//Waiting for success
@@ -97,9 +97,9 @@ uint8_t SD_Select(void)
 **Waiting for the card to be ready
 ** Return value: 0, ready; other, error code
 **************************************************************************************/
-uint8_t SD_Wait_Ready(void)
+u8 SD_Wait_Ready(void)
 {
-  uint32_t t=0;
+  u32 t=0;
   do
   {
     if(SD_SPI_Read_Write_Byte(0XFF)==0XFF)return 0;//OK
@@ -115,9 +115,9 @@ uint8_t SD_Wait_Ready(void)
 ** Return value: 0, the response value was successfully obtained
 ** Other, failed to get response value
 *************************************************************************************/
-uint8_t SD_Get_Ack(uint8_t Response)
+u8 SD_Get_Ack(u8 Response)
 {
-  uint16_t Count=0xFFFF;//Wait times
+  u16 Count=0xFFFF;//Wait times
   while ((SD_SPI_Read_Write_Byte(0XFF)!=Response) && Count)  Count--; //Waiting for an accurate response
 
   if (Count==0)
@@ -133,7 +133,7 @@ uint8_t SD_Get_Ack(uint8_t Response)
 ** len: Length of data to be read.
 ** Return value: 0, success; others, failure;
 ****************************************************************************************/
-uint8_t SD_RecvData(uint8_t*buf,uint16_t len)
+u8 SD_RecvData(u8*buf,u16 len)
 {
   if(SD_Get_Ack(0xFE))return 1;//Wait for SD card to send back data start token 0xFE
   while(len--)//Start receiving data
@@ -155,9 +155,9 @@ uint8_t SD_RecvData(uint8_t*buf,uint16_t len)
 ** cmd: instruction
 ** Return value: 0, success; others, failure;
 *************************************************************************************/
-uint8_t SD_Send_Data(uint8_t*buf,uint8_t cmd)
+u8 SD_Send_Data(u8*buf,u8 cmd)
 {
-  uint16_t t;
+  u16 t;
   if(SD_Wait_Ready())  return 1;  //Waiting for preparation to fail
   SD_SPI_Read_Write_Byte(cmd);
   if(cmd!=0XFD)//Not an end instruction
@@ -181,10 +181,10 @@ uint8_t SD_Send_Data(uint8_t*buf,uint8_t cmd)
 ** u8 crc crc check value
 ** Return value: Response returned by SD card
 ***************************************************************************************/
-uint8_t SD_SendCmd(uint8_t cmd, uint32_t arg, uint8_t crc)
+u8 SD_SendCmd(u8 cmd, u32 arg, u8 crc)
 {
-  uint8_t r1;
-  uint8_t Retry=0;
+  u8 r1;
+  u8 Retry=0;
   SD_Cancel_CS();              //Cancel last selection
   if(SD_Select())  return 0XFF;//Chip Select Failure
   //send
@@ -212,9 +212,9 @@ uint8_t SD_SendCmd(uint8_t cmd, uint32_t arg, uint8_t crc)
 **Return value: 0: NO_ERR
 **		 1��error
 *************************************************************************************/
-uint8_t SD_GetCID(uint8_t *cid_data)
+u8 SD_GetCID(u8 *cid_data)
 {
-  uint8_t r1;
+  u8 r1;
   //Send CMD10 command, read CID
   r1=SD_SendCmd(CMD10,0,0x01);
   if(r1==0x00)
@@ -233,9 +233,9 @@ Input: u8 * cid_data (memory for CID, at least 16Byte)
 Return value: 0: NO_ERR
 1: error
 *************************************************************************************/
-uint8_t SD_GetCSD(uint8_t *csd_data)
+u8 SD_GetCSD(u8 *csd_data)
 {
-  uint8_t r1;
+  u8 r1;
   r1=SD_SendCmd(CMD9,0,0x01);    //Send CMD9 command, read CSD
   if(r1==0)
   {
@@ -253,23 +253,23 @@ uint8_t SD_GetCSD(uint8_t *csd_data)
 **Other: SD card capacity (number of sectors / 512 bytes)
 **The number of bytes per sector must be 512 bytes, because if it is not 512 bytes, the initialization cannot pass.
 *************************************************************/
-uint32_t SD_Get_Sector_Count(void)
+u32 SD_Get_Sector_Count(void)
 {
-  uint8_t csd[16];
-  uint32_t Capacity;
-  uint8_t n;
-  uint16_t csize;
+  u8 csd[16];
+  u32 Capacity;
+  u8 n;
+  u16 csize;
   if(SD_GetCSD(csd) != 0) return 0;	//Get CSD information, if an error occurs during the period, return 0
   if((csd[0]&0xC0) == 0x40)	        //V2.00 card, if it is SDHC card, calculate it as follows
   {
-    csize = csd[9] + ((uint16_t)csd[8] << 8) + 1;
-    Capacity = (uint32_t)csize << 10;//Get the number of sectors
+    csize = csd[9] + ((u16)csd[8] << 8) + 1;
+    Capacity = (u32)csize << 10;//Get the number of sectors
   }
   else//V1.XX card
   {
     n = (csd[5] & 15) + ((csd[10] & 128) >> 7) + ((csd[9] & 3) << 1) + 2;
-    csize = (csd[8] >> 6) + ((uint16_t)csd[7] << 2) + ((uint16_t)(csd[6] & 3) << 10) + 1;
-    Capacity= (uint32_t)csize << (n - 9);//Get the number of sectors
+    csize = (csd[8] >> 6) + ((u16)csd[7] << 2) + ((u16)(csd[6] & 3) << 10) + 1;
+    Capacity= (u32)csize << (n - 9);//Get the number of sectors
   }
   return Capacity;
 }
@@ -280,12 +280,12 @@ uint32_t SD_Get_Sector_Count(void)
 Initialize SD card
 ***********************************/
 
-uint8_t SD_Init(void)
+u8 SD_Init(void)
 {
-  uint8_t r1;      // Store the return value of the SD card
-  uint16_t retry;  // Used for timeout counting
-  uint8_t buf[4];
-  uint16_t i;
+  u8 r1;      // Store the return value of the SD card
+  u16 retry;  // Used for timeout counting
+  u8 buf[4];
+  u16 i;
 
   SD_SPI_Init();		//Initialize IO
   SD_SetLowSpeed();
@@ -359,9 +359,9 @@ uint8_t SD_Init(void)
 ** cnt: Number of sectors
 ** Return value: 0, ok; other, failed.
 *************************************************************************************/
-uint8_t SD_ReadDisk(uint8_t*buf,uint32_t sector,uint8_t cnt) 	//Read SD card, fatfs / usb calls x
+u8 SD_ReadDisk(u8*buf,u32 sector,u8 cnt) 	//Read SD card, fatfs / usb calls x
 {
-  uint8_t r1;
+  u8 r1;
   if(SD_Type != SD_TYPE_V2HC) sector <<= 9;//Translate to byte address
   if(cnt == 1)
   {
@@ -391,9 +391,9 @@ uint8_t SD_ReadDisk(uint8_t*buf,uint32_t sector,uint8_t cnt) 	//Read SD card, fa
 **cnt:Number of sectors
 **Return value: 0, ok; other, failed.
 *************************************************************************************/
-uint8_t SD_WriteDisk(uint8_t*buf,uint32_t sector,uint8_t cnt)	//Write SD card, fatfs / usb call
+u8 SD_WriteDisk(u8*buf,u32 sector,u8 cnt)	//Write SD card, fatfs / usb call
 {
-  uint8_t r1;
+  u8 r1;
   if(SD_Type!=SD_TYPE_V2HC) sector *= 512;//Translate to byte address
   if(cnt == 1)
   {
