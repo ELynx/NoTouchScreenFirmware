@@ -27,7 +27,7 @@
 #ifndef LCD_SD_TEXT_DELAY_SEC
   #define LCD_SD_TEXT_DELAY_SEC 5
 #endif
-#if defined(LCD_SD_LOGO_FOLDER) && !defined(LCD_SD_LOGO_DELAY_MS)
+#ifndef LCD_SD_LOGO_DELAY_MS
   #define LCD_SD_LOGO_DELAY_MS 1000
 #endif
 #define LCD_SD_TEXT_RETRY_MS 10000
