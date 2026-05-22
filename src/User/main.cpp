@@ -43,7 +43,7 @@
   #define LCD_ENCODER_POLLING
 #endif
 
-#if defined(KNOB_RGB_COLOR) || defined(LCD_SD_TEXT_FILE) || defined(LCD_SD_LOGO_FOLDER) || defined(LCD_ENCODER_POLLING)
+#if defined(LCD_ENCODER_POLLING) || defined(KNOB_RGB_COLOR) || defined(LCD_SD_TEXT_FILE) || defined(LCD_SD_LOGO_FOLDER)
   #define LCD_TIMER_TICK
 #endif
 
@@ -950,7 +950,7 @@ int main(void)
   // Endless loop
   uint8_t data;
   while(true) {
-#if defined(LCD_SD_TEXT_FILE) || defined(LCD_SD_LOGO_FOLDER) || defined(LCD_ENCODER_POLLING)
+#if defined(LCD_ENCODER_POLLING) || defined(LCD_SD_TEXT_FILE) || defined(LCD_SD_LOGO_FOLDER)
     const uint32_t ui32CurrentMs = Timer_GetTimerMs();
 #endif
 
