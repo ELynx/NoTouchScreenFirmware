@@ -11,14 +11,8 @@
 #include "St7920Emulator.hpp"
 #undef private
 
-#define ST7920_GXROWS 128.0
-#define ST7920_GYROWS 64.0
-#ifndef ST7920_ASPECT_WIDTH
-  #define ST7920_ASPECT_WIDTH ST7920_GXROWS
-#endif
-#ifndef ST7920_ASPECT_HEIGHT
-  #define ST7920_ASPECT_HEIGHT ST7920_GYROWS
-#endif
+#define ST7920_GXROWS 128.0f
+#define ST7920_GYROWS 64.0f
 #define LCD_TEXT_CHAR_WIDTH 8
 #define LCD_TEXT_CHAR_STEP 8
 #define LCD_TEXT_FONT_HEIGHT 16
@@ -42,20 +36,19 @@
   #define LCD_EMULATOR_TOP_MARGIN 0
   #define LCD_EMULATOR_BOTTOM_MARGIN 0
 #endif
-typedef float lcd_pixel_type;
 
-static lcd_pixel_type st7920Width;
-static lcd_pixel_type st7920Height;
-static lcd_pixel_type st7920PixelWidth;
-static lcd_pixel_type st7920PixelHeight;
-static lcd_pixel_type st7920StartX;
-static lcd_pixel_type st7920StartY;
+static float st7920Width;
+static float st7920Height;
+static float st7920PixelWidth;
+static float st7920PixelHeight;
+static float st7920StartX;
+static float st7920StartY;
 
-static inline lcd_pixel_type minLcdPixel(lcd_pixel_type a, lcd_pixel_type b) {
+static inline float minLcdPixel(float a, float b) {
   return a < b ? a : b;
 }
 
-static inline uint16_t clampDisplayCoordinate(lcd_pixel_type value, uint16_t limit) {
+static inline uint16_t clampDisplayCoordinate(float value, uint16_t limit) {
   if (value <= 0) {
     return 0;
   }
@@ -65,29 +58,29 @@ static inline uint16_t clampDisplayCoordinate(lcd_pixel_type value, uint16_t lim
   return (uint16_t)(value + 0.5f);
 }
 
-static void fillRect(lcd_pixel_type x,
-                     lcd_pixel_type y,
-                     lcd_pixel_type w,
-                     lcd_pixel_type h,
+static void fillRect(float x,
+                     float y,
+                     float w,
+                     float h,
                      uint16_t color) {
   if (w <= 0 || h <= 0) {
     return;
   }
 
 #if defined(LCD_MIRROR_HORIZONTALLY)
-  const lcd_pixel_type sx = (lcd_pixel_type)LCD_WIDTH - x - w;
-  const lcd_pixel_type ex = (lcd_pixel_type)LCD_WIDTH - x;
+  const float sx = LCD_WIDTH - x - w;
+  const float ex = LCD_WIDTH - x;
 #else
-  const lcd_pixel_type sx = x;
-  const lcd_pixel_type ex = x + w;
+  const float sx = x;
+  const float ex = x + w;
 #endif
 
 #if defined(LCD_MIRROR_VERTICALLY)
-  const lcd_pixel_type sy = (lcd_pixel_type)LCD_HEIGHT - y - h;
-  const lcd_pixel_type ey = (lcd_pixel_type)LCD_HEIGHT - y;
+  const float sy = LCD_HEIGHT - y - h;
+  const float ey = LCD_HEIGHT - y;
 #else
-  const lcd_pixel_type sy = y;
-  const lcd_pixel_type ey = y + h;
+  const float sy = y;
+  const float ey = y + h;
 #endif
 
   const uint16_t x0 = clampDisplayCoordinate(sx, LCD_WIDTH);
@@ -101,17 +94,17 @@ static void fillRect(lcd_pixel_type x,
 }
 
 static void calculateSt7920Layout(void) {
-  const lcd_pixel_type availableHeight = LCD_HEIGHT - LCD_EMULATOR_TOP_MARGIN - LCD_EMULATOR_BOTTOM_MARGIN;
-  lcd_pixel_type scale = minLcdPixel((lcd_pixel_type)LCD_WIDTH / (lcd_pixel_type)ST7920_ASPECT_WIDTH,
-                                     availableHeight / (lcd_pixel_type)ST7920_ASPECT_HEIGHT);
+  const float availableHeight = LCD_HEIGHT - LCD_EMULATOR_TOP_MARGIN - LCD_EMULATOR_BOTTOM_MARGIN;
+  float scale = minLcdPixel(LCD_WIDTH / ST7920_GXROWS,
+                            availableHeight / ST7920_GYROWS);
 #if !defined(LCD_FULLSCREEN)
   scale = floorf(scale);
 #endif
 
-  st7920Width = scale * (lcd_pixel_type)ST7920_ASPECT_WIDTH;
-  st7920Height = scale * (lcd_pixel_type)ST7920_ASPECT_HEIGHT;
-  st7920PixelWidth = st7920Width / (lcd_pixel_type)ST7920_GXROWS;
-  st7920PixelHeight = st7920Height / (lcd_pixel_type)ST7920_GYROWS;
+  st7920Width = scale * ST7920_GXROWS;
+  st7920Height = scale * ST7920_GYROWS;
+  st7920PixelWidth = st7920Width / ST7920_GXROWS;
+  st7920PixelHeight = st7920Height / ST7920_GYROWS;
   st7920StartX = (LCD_WIDTH - st7920Width) / 2;
   st7920StartY = LCD_EMULATOR_TOP_MARGIN + (availableHeight - st7920Height) / 2;
 }
@@ -640,7 +633,7 @@ static bool msElapsed(uint32_t currentMs, uint32_t targetMs) {
 }
 
 static uint16_t st7920BottomY(void) {
-  lcd_pixel_type bottom = st7920StartY + st7920Height;
+  float bottom = st7920StartY + st7920Height;
   if (bottom >= LCD_HEIGHT) {
     return LCD_HEIGHT;
   }
