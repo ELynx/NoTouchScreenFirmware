@@ -13,10 +13,8 @@
 
 #define ST7920_GXROWS 128.0f
 #define ST7920_GYROWS 64.0f
-#define LCD_TEXT_CHAR_WIDTH 8
-#define LCD_TEXT_CHAR_STEP LCD_TEXT_CHAR_WIDTH
+#define LCD_TEXT_FONT_WIDTH 8
 #define LCD_TEXT_FONT_HEIGHT 16
-#define LCD_TEXT_LINE_HEIGHT LCD_TEXT_FONT_HEIGHT
 #ifndef LCD_SD_TEXT_DELAY_SEC
   #define LCD_SD_TEXT_DELAY_SEC 5
 #endif
@@ -25,13 +23,13 @@
 #endif
 #define LCD_SD_TEXT_RETRY_MS 10000
 #define LCD_SD_TEXT_MAX_CHARS 128
-#if defined(LCD_SD_TEXT_FILE) || defined(LCD_TITLE)
+#if defined(LCD_TITLE) || defined(LCD_SD_TEXT_FILE)
   #define LCD_EMULATOR_TOP_MARGIN LCD_TEXT_FONT_HEIGHT
 #else
   #define LCD_EMULATOR_TOP_MARGIN 0
 #endif
 #if defined(LCD_SD_TEXT_FILE)
-  #define LCD_EMULATOR_BOTTOM_MARGIN LCD_TEXT_LINE_HEIGHT
+  #define LCD_EMULATOR_BOTTOM_MARGIN LCD_TEXT_FONT_HEIGHT
 #else
   #define LCD_EMULATOR_BOTTOM_MARGIN 0
 #endif
@@ -150,11 +148,11 @@ static uint16_t ui16StatusLogoAnimationFrame = 0;
 static uint32_t ui32StatusLogoAnimationNextMs = 0;
 #endif
 
-#if defined(SPI_RESTART_KNOB_PRESS_DURATION_SEC) || defined(LCD_IDLE_TIMEOUT_SEC)
+#if defined(LCD_IDLE_TIMEOUT_SEC) || defined(SPI_RESTART_KNOB_PRESS_DURATION_SEC)
   #define LCD_ENCODER_POLLING
 #endif
 
-#if defined(LCD_ENCODER_POLLING) || defined(KNOB_RGB_COLOR) || defined(LCD_SD_TEXT_FILE) || defined(LCD_SD_LOGO_FOLDER)
+#if defined(KNOB_RGB_COLOR) || defined(LCD_SD_TEXT_FILE) || defined(LCD_SD_LOGO_FOLDER) || defined(LCD_ENCODER_POLLING)
   #define LCD_TIMER_TICK
 #endif
 
@@ -168,34 +166,26 @@ static uint8_t normalizeTextChar(char c) {
 }
 
 static uint16_t textWidth(const char *text) {
-  uint16_t width = 0;
-  while (*text != '\0' && width < LCD_WIDTH) {
-    width += LCD_TEXT_CHAR_STEP;
-    ++text;
-  }
-  return width > LCD_WIDTH ? LCD_WIDTH : width;
+  size_t width = strlen(text) * LCD_TEXT_FONT_WIDTH;
+  return width > LCD_WIDTH ? LCD_WIDTH : (uint16_t)width;
 }
 
-static uint16_t centeredTextX(const char *text) {
-  uint16_t width = textWidth(text);
-  if (LCD_WIDTH <= width) {
-    return 0;
-  }
+static uint16_t centeredTextX(uint16_t width) {
   return (LCD_WIDTH - width) / 2;
 }
 
 static void drawTextLine(const char *text, uint16_t x, uint16_t y) {
-  while (*text != '\0' && x + LCD_TEXT_CHAR_WIDTH <= LCD_WIDTH) {
+  while (*text != '\0' && x + LCD_TEXT_FONT_WIDTH <= LCD_WIDTH) {
     uint16_t charIndex = ((uint16_t)normalizeTextChar(*text) - 1) * LCD_TEXT_FONT_HEIGHT;
     for (uint8_t row = 0; row < LCD_TEXT_FONT_HEIGHT; ++row) {
       uint8_t rowBits = St7920Emulator::pFont816[charIndex + row];
       uint8_t col = 0;
-      while (col < LCD_TEXT_CHAR_WIDTH) {
-        while (col < LCD_TEXT_CHAR_WIDTH && (rowBits & (1 << col)) == 0) {
+      while (col < LCD_TEXT_FONT_WIDTH) {
+        while (col < LCD_TEXT_FONT_WIDTH && (rowBits & (1 << col)) == 0) {
           ++col;
         }
         uint8_t runStart = col;
-        while (col < LCD_TEXT_CHAR_WIDTH && (rowBits & (1 << col)) != 0) {
+        while (col < LCD_TEXT_FONT_WIDTH && (rowBits & (1 << col)) != 0) {
           ++col;
         }
         if (runStart < col) {
@@ -203,13 +193,13 @@ static void drawTextLine(const char *text, uint16_t x, uint16_t y) {
         }
       }
     }
-    x += LCD_TEXT_CHAR_STEP;
+    x += LCD_TEXT_FONT_WIDTH;
     ++text;
   }
 }
 
 static void drawTitleBarText(const char *text) {
-  drawTextLine(text, centeredTextX(text), 0);
+  drawTextLine(text, centeredTextX(textWidth(text)), 0);
 }
 #endif
 
@@ -635,7 +625,7 @@ static uint16_t st7920BottomY(void) {
 }
 
 static void clearTextBand(uint16_t y) {
-  uint16_t h = LCD_TEXT_LINE_HEIGHT;
+  uint16_t h = LCD_TEXT_FONT_HEIGHT;
   if (y + h > LCD_HEIGHT) {
     h = LCD_HEIGHT - y;
   }
@@ -942,8 +932,9 @@ int main(void)
 
   // Variables for SPI data received indicator
 #if defined(SPI_DATA_RECEIVED_INDICATOR) && defined(LCD_TITLE)
-  uint16_t ui16TitleX = centeredTextX(LCD_TITLE);
-  uint16_t ui16TitleEnd = ui16TitleX + textWidth(LCD_TITLE);
+  uint16_t ui16TitleWidth = textWidth(LCD_TITLE);
+  uint16_t ui16TitleX = centeredTextX(ui16TitleWidth);
+  uint16_t ui16TitleEnd = ui16TitleX + ui16TitleWidth;
   bool bSpiDataIndicator = ui16TitleX > 2;
   bool bSpiActivityIndicator = (ui16TitleEnd + 10) < LCD_WIDTH;
   uint16_t ui16DX = 0, ui16DY = 0, ui16AX = ui16TitleEnd, ui16AY = 0;
@@ -954,7 +945,7 @@ int main(void)
   // Endless loop
   uint8_t data;
   while(true) {
-#if defined(LCD_ENCODER_POLLING) || defined(LCD_SD_TEXT_FILE) || defined(LCD_SD_LOGO_FOLDER)
+#if defined(LCD_SD_TEXT_FILE) || defined(LCD_SD_LOGO_FOLDER) || defined(LCD_ENCODER_POLLING)
     const uint32_t ui32CurrentMs = Timer_GetTimerMs();
 #endif
 
