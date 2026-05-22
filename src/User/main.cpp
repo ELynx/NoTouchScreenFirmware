@@ -48,13 +48,9 @@ static inline float minLcdPixel(float a, float b) {
 }
 
 static inline uint16_t clampDisplayCoordinate(float value, uint16_t limit) {
-  if (value <= 0) {
-    return 0;
-  }
-  if (value >= limit) {
-    return limit;
-  }
-  return (uint16_t)(value + 0.5f);
+  if (value <= 0) return 0;
+  if (value >= limit) return limit;
+  return (uint16_t)(value + 0.5f); // round to nearest pixel
 }
 
 static void fillRect(float x,
@@ -87,9 +83,7 @@ static void fillRect(float x,
   const uint16_t x1 = clampDisplayCoordinate(ex, LCD_WIDTH);
   const uint16_t y1 = clampDisplayCoordinate(ey, LCD_HEIGHT);
 
-  if (x0 < x1 && y0 < y1) {
-    GUI_FillRectColor(x0, y0, x1, y1, color);
-  }
+  GUI_FillRectColor(x0, y0, x1, y1, color);
 }
 
 static void calculateSt7920Layout(void) {
@@ -156,10 +150,11 @@ static uint16_t ui16StatusLogoAnimationFrame = 0;
 static uint32_t ui32StatusLogoAnimationNextMs = 0;
 #endif
 
-#if LCD_ENCODER_SUPPORT && (defined(SPI_RESTART_KNOB_PRESS_DURATION_SEC) || defined(LCD_IDLE_TIMEOUT_SEC))
+#if defined(SPI_RESTART_KNOB_PRESS_DURATION_SEC) || defined(LCD_IDLE_TIMEOUT_SEC)
   #define LCD_ENCODER_POLLING
 #endif
-#if defined(KNOB_RGB_COLOR) || defined(LCD_ENCODER_POLLING) || defined(LCD_SD_TEXT_FILE) || defined(LCD_SD_LOGO_FOLDER)
+
+#if defined(LCD_ENCODER_POLLING) || defined(KNOB_RGB_COLOR) || defined(LCD_SD_TEXT_FILE) || defined(LCD_SD_LOGO_FOLDER)
   #define LCD_TIMER_TICK
 #endif
 
