@@ -1,5 +1,4 @@
-#ifndef _INCLUDES_H_
-#define _INCLUDES_H_
+#pragma once
 
 #include "variants.h"
 
@@ -66,21 +65,6 @@
     #error "SPI_RESTART_KNOB_PRESS_DURATION_SEC requires encoder"
   #endif
 #endif
-#if defined(LCD_SD_TEXT_FILE) && defined(LCD_TITLE)
-  #error "LCD_TITLE cannot be defined when LCD_SD_TEXT_FILE is enabled"
-#endif
-#if defined(LCD_SD_TEXT_FILE) && !defined(SD_SPI_SUPPORT)
-  #error "LCD_SD_TEXT_FILE requires SD_SPI_SUPPORT"
-#endif
-#if defined(LCD_SD_LOGO_FOLDER) && !defined(SD_SPI_SUPPORT)
-  #error "LCD_SD_LOGO_FOLDER requires SD_SPI_SUPPORT"
-#endif
-#if defined(SPI_DATA_RECEIVED_INDICATOR) && defined(LCD_SD_TEXT_FILE)
-  #error "SPI_DATA_RECEIVED_INDICATOR cannot be combined with LCD_SD_TEXT_FILE"
-#endif
-#if defined(SPI_DATA_RECEIVED_INDICATOR) && !defined(LCD_TITLE)
-  #error "SPI_DATA_RECEIVED_INDICATOR requires LCD_TITLE"
-#endif
 #if defined(KNOB_RGB_COLOR)
   #if !defined(KNOB_LED_COLOR_PIN)
     #error "KNOB_RGB_COLOR requires KNOB_LED_COLOR_PIN"
@@ -95,4 +79,18 @@
     #error "KNOB_RGB_COLOR requires WS2812_FAST_WRITE_LOW"
   #endif
 #endif
+#if defined(LCD_SD_TEXT_FILE) && defined(LCD_TITLE)
+  #error "LCD_TITLE cannot be defined when LCD_SD_TEXT_FILE is enabled"
+#endif
+#if defined(LCD_SD_TEXT_FILE) && !defined(SD_SPI_SUPPORT)
+  #error "LCD_SD_TEXT_FILE requires SD_SPI_SUPPORT"
+#endif
+#if defined(LCD_SD_LOGO_FOLDER) && !defined(SD_SPI_SUPPORT)
+  #error "LCD_SD_LOGO_FOLDER requires SD_SPI_SUPPORT"
+#endif
+#if defined(SPI_DATA_RECEIVED_INDICATOR) && defined(LCD_SD_TEXT_FILE)
+  #error "SPI_DATA_RECEIVED_INDICATOR cannot be combined with LCD_SD_TEXT_FILE"
+#endif
+#if defined(SPI_DATA_RECEIVED_INDICATOR) && !defined(LCD_TITLE)
+  #error "SPI_DATA_RECEIVED_INDICATOR requires LCD_TITLE"
 #endif
