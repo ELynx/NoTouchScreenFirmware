@@ -18,15 +18,27 @@ void GUI_Clear(uint16_t color)
 
 void GUI_FillRectColor(uint16_t sx, uint16_t sy, uint16_t ex, uint16_t ey, uint16_t color)
 {
-  if (sx >= ex || sy >= ey) return;
+  if (GUI_SetWindow(sx, sy, ex, ey))
+  {
+    const uint32_t area = (uint32_t)(ex - sx) * (uint32_t)(ey - sy);
+    for(uint32_t index=0; index<area; ++index)
+    {
+      GUI_NextColor(color);
+    }
+  }
+}
+
+bool GUI_SetWindow(uint16_t sx, uint16_t sy, uint16_t ex, uint16_t ey)
+{
+  if (sx >= ex || sy >= ey) return false;
 
   LCD_SetWindow(sx, sy, ex-1, ey-1);
   LCD_WR_REG(0x2C);
 
-  uint32_t index;
-  const uint32_t area = (uint32_t)(ex - sx) * (uint32_t)(ey - sy);
-  for(index=0; index<area; ++index)
-  {
-    LCD_WR_16BITS_DATA(color);
-  }
+  return true;
+}
+
+void GUI_NextColor(uint16_t color)
+{
+  LCD_WR_16BITS_DATA(color);
 }
