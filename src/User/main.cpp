@@ -162,12 +162,12 @@ static uint32_t ui32StatusLogoAnimationNextMs = 0;
 #endif
 
 #if defined(LCD_TITLE) || defined(LCD_SD_TEXT_FILE)
-static uint8_t normalizeTextChar(char c) {
-  uint8_t glyphChar = (uint8_t)c;
-  if (glyphChar == 0 || glyphChar > 0x7F) {
-    return '?';
+
+static uint16_t textCharIndex(char c) {
+  if (c == '\0' || c > 0x7F) {
+    c = '?';
   }
-  return glyphChar;
+  return ((uint16_t)c - 1) * LCD_TEXT_FONT_HEIGHT;
 }
 
 static uint16_t textWidth(const char *text) {
@@ -181,7 +181,7 @@ static uint16_t centeredTextX(uint16_t width) {
 
 static void drawTextLine(const char *text, uint16_t x, uint16_t y) {
   while (*text != '\0' && x + LCD_TEXT_FONT_WIDTH <= LCD_WIDTH) {
-    uint16_t charIndex = ((uint16_t)normalizeTextChar(*text) - 1) * LCD_TEXT_FONT_HEIGHT;
+    uint16_t charIndex = textCharIndex(*text);
     for (uint8_t row = 0; row < LCD_TEXT_FONT_HEIGHT; ++row) {
       uint8_t rowBits = St7920Emulator::pFont816[charIndex + row];
       uint8_t col = 0;
