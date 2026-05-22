@@ -88,6 +88,9 @@
 #if defined(LCD_SD_LOGO_FOLDER) && !defined(SD_SPI_SUPPORT)
   #error "LCD_SD_LOGO_FOLDER requires SD_SPI_SUPPORT"
 #endif
+#if defined(LCD_SD_LOGO_FOLDER) && LCD_SD_LOGO_DELAY_MS < 1
+  #error "LCD_SD_LOGO_DELAY_MS must be at least 1"
+#endif
 #if defined(SPI_DATA_RECEIVED_INDICATOR) && defined(LCD_SD_TEXT_FILE)
   #error "SPI_DATA_RECEIVED_INDICATOR cannot be combined with LCD_SD_TEXT_FILE"
 #endif
