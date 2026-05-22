@@ -13,25 +13,38 @@
 
 #define ST7920_GXROWS 128.0f
 #define ST7920_GYROWS 64.0f
-#define LCD_TEXT_FONT_WIDTH 8
-#define LCD_TEXT_FONT_HEIGHT 16
-#ifndef LCD_SD_TEXT_DELAY_SEC
-  #define LCD_SD_TEXT_DELAY_SEC 5
-#endif
-#ifndef LCD_SD_LOGO_DELAY_MS
-  #define LCD_SD_LOGO_DELAY_MS 1000
-#endif
-#define LCD_SD_TEXT_RETRY_MS 10000
-#define LCD_SD_TEXT_MAX_CHARS 128
+
 #if defined(LCD_TITLE) || defined(LCD_SD_TEXT_FILE)
+  #define LCD_TEXT_FONT_WIDTH 8
+  #define LCD_TEXT_FONT_HEIGHT 16
   #define LCD_EMULATOR_TOP_MARGIN LCD_TEXT_FONT_HEIGHT
 #else
   #define LCD_EMULATOR_TOP_MARGIN 0
 #endif
+
 #if defined(LCD_SD_TEXT_FILE)
+  #ifndef LCD_SD_TEXT_DELAY_SEC
+    #define LCD_SD_TEXT_DELAY_SEC 5
+  #endif
+  #define LCD_SD_TEXT_RETRY_MS 10000
+  #define LCD_SD_TEXT_MAX_CHARS 128
   #define LCD_EMULATOR_BOTTOM_MARGIN LCD_TEXT_FONT_HEIGHT
 #else
   #define LCD_EMULATOR_BOTTOM_MARGIN 0
+#endif
+
+#if defined(LCD_SD_LOGO_FOLDER)
+  #ifndef LCD_SD_LOGO_DELAY_MS
+    #define LCD_SD_LOGO_DELAY_MS 1000
+  #endif
+#endif
+
+#if defined(LCD_IDLE_TIMEOUT_SEC) || defined(SPI_RESTART_KNOB_PRESS_DURATION_SEC)
+  #define LCD_ENCODER_POLLING
+#endif
+
+#if defined(KNOB_RGB_COLOR) || defined(LCD_SD_TEXT_FILE) || defined(LCD_SD_LOGO_FOLDER) || defined(LCD_ENCODER_POLLING)
+  #define LCD_TIMER_TICK
 #endif
 
 static float st7920Width;
@@ -146,14 +159,6 @@ static bool bStatusLogoOverrideFrameVisible = false;
 static bool bStatusLogoOverrideScanDirty = false;
 static uint16_t ui16StatusLogoAnimationFrame = 0;
 static uint32_t ui32StatusLogoAnimationNextMs = 0;
-#endif
-
-#if defined(LCD_IDLE_TIMEOUT_SEC) || defined(SPI_RESTART_KNOB_PRESS_DURATION_SEC)
-  #define LCD_ENCODER_POLLING
-#endif
-
-#if defined(KNOB_RGB_COLOR) || defined(LCD_SD_TEXT_FILE) || defined(LCD_SD_LOGO_FOLDER) || defined(LCD_ENCODER_POLLING)
-  #define LCD_TIMER_TICK
 #endif
 
 #if defined(LCD_TITLE) || defined(LCD_SD_TEXT_FILE)
