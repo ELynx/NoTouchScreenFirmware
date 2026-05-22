@@ -1,11 +1,11 @@
 #include "includes.h"
 
+#include <math.h>
+
 #include "myfatfs.h"
 #include "ff.h"
 #include "timer.h"
 #include "GPIO_Init.h"
-
-#include <math.h>
 
 #define private public
 #include "St7920Emulator.hpp"
@@ -14,10 +14,9 @@
 #define ST7920_GXROWS 128.0f
 #define ST7920_GYROWS 64.0f
 #define LCD_TEXT_CHAR_WIDTH 8
-#define LCD_TEXT_CHAR_STEP 8
+#define LCD_TEXT_CHAR_STEP LCD_TEXT_CHAR_WIDTH
 #define LCD_TEXT_FONT_HEIGHT 16
-#define LCD_TEXT_LINE_HEIGHT 16
-#define LCD_TITLE_BAR_HEIGHT LCD_TEXT_FONT_HEIGHT
+#define LCD_TEXT_LINE_HEIGHT LCD_TEXT_FONT_HEIGHT
 #ifndef LCD_SD_TEXT_DELAY_SEC
   #define LCD_SD_TEXT_DELAY_SEC 5
 #endif
@@ -26,14 +25,14 @@
 #endif
 #define LCD_SD_TEXT_RETRY_MS 10000
 #define LCD_SD_TEXT_MAX_CHARS 128
-#if defined(LCD_SD_TEXT_FILE)
-  #define LCD_EMULATOR_TOP_MARGIN LCD_TITLE_BAR_HEIGHT
-  #define LCD_EMULATOR_BOTTOM_MARGIN LCD_TEXT_LINE_HEIGHT
-#elif defined(LCD_TITLE)
-  #define LCD_EMULATOR_TOP_MARGIN LCD_TITLE_BAR_HEIGHT
-  #define LCD_EMULATOR_BOTTOM_MARGIN 0
+#if defined(LCD_SD_TEXT_FILE) || defined(LCD_TITLE)
+  #define LCD_EMULATOR_TOP_MARGIN LCD_TEXT_FONT_HEIGHT
 #else
   #define LCD_EMULATOR_TOP_MARGIN 0
+#endif
+#if defined(LCD_SD_TEXT_FILE)
+  #define LCD_EMULATOR_BOTTOM_MARGIN LCD_TEXT_LINE_HEIGHT
+#else
   #define LCD_EMULATOR_BOTTOM_MARGIN 0
 #endif
 
