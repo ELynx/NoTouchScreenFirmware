@@ -57,7 +57,7 @@ static void calculateScale(void) {
 
   const float availableHeight = LCD_HEIGHT - LCD_EMULATOR_TOP_MARGIN - LCD_EMULATOR_BOTTOM_MARGIN;
   const float heightScale = availableHeight / yRows;
-  
+
   float scale = widthScale < heightScale ? widthScale : heightScale;
 
 #if !defined(LCD_FULLSCREEN)
@@ -164,16 +164,56 @@ static uint16_t calculateTextXFromCenter(uint16_t width) {
 }
 
 static void drawTextLine(const char *text, uint16_t x, uint16_t y) {
-  // TODO
-  // calculate line height from defined constant
-  // calculate line width from *text pointer
-  // translate logical coordinates into physical; depends on LCD_MIRROR_HORIZONTALLY and LCD_MIRROR_VERTICALLY at compile time
-  // "set" physical line coordinates via GUI.h helper for whole line
-  // observing LCD_MIRROR_HORIZONTALLY and LCD_MIRROR_VERTICALLY, using getFont816Index to get font bitmap fill in "set" window by foreground / backgroud color pixel by pixel
-  // notice: text is not scaled, contrary to st7920 emulator
+  if (text == 0) return;
+  if (y > LCD_HEIGHT - LCD_TEXT_FONT_HEIGHT) return;
+
+  uint16_t width = calculateTextWidth(text);
+  if (x + width > LCD_WIDTH) width = LCD_WIDTH - x;
+  if (width == 0) return;
+
+  uint16_t sx = x;
+  uint16_t sy = y;
+  uint16_t ex = x + width;
+  uint16_t ey = y + LCD_TEXT_FONT_HEIGHT;
+
+#if defined(LCD_MIRROR_HORIZONTALLY)
+  uint16_t msx = LCD_WIDTH - ex;
+  ex = LCD_WIDTH - sx;
+  sx = msx;
+#endif
+
+#if defined(LCD_MIRROR_VERTICALLY)
+  uint16_t msy = LCD_HEIGHT - ey;
+  ey = LCD_HEIGHT - sy;
+  sy = msy;
+#endif
+
+  if (!GUI_SetWindow(sx, sy, ex, ey)) {
+    return;
+  }
+
+  for (uint16_t row = 0; row < LCD_TEXT_FONT_HEIGHT; ++row) {
+#if defined(LCD_MIRROR_VERTICALLY)
+    const uint16_t fontRow = LCD_TEXT_FONT_HEIGHT - row - 1;
+#else
+    const uint16_t fontRow = row;
+#endif
+    for (uint16_t col = 0; col < width; ++col) {
+#if defined(LCD_MIRROR_HORIZONTALLY)
+      const uint16_t fontCol = width - col - 1;
+#else
+      const uint16_t fontCol = col;
+#endif
+      const char c = text[fontCol / LCD_TEXT_FONT_WIDTH];
+      const uint8_t fontByte = St7920Emulator::pFont816[getFont816Index(c) + fontRow];
+      const uint16_t color = (fontByte & (1 << (fontCol % LCD_TEXT_FONT_WIDTH))) ? LCD_COLOR_FOREGROUND : LCD_COLOR_BACKGROUND;
+      GUI_NextColor(color);
+    }
+  }
 }
 
 static void drawTitleBarText(const char *text) {
+  // calls calculateTextWidth twice in total, but since called only in init it is acceptable
   const uint16_t width = calculateTextWidth(text);
   const uint16_t x = calculateTextXFromCenter(width);
   drawTextLine(text, x, 0);
