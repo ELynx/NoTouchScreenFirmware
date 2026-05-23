@@ -72,44 +72,70 @@ static void calculateScale(void) {
 }
 
 static void clearDisplayScaled() {
-  // TODO
-  // Clear ST7920 gui rect
-  // calculate emulated gui rect observing LCD_MIRROR_HORIZONTALLY and LCD_MIRROR_VERTICALLY
-  // verify *if* rotations apply since area is always centered
-  // clear area with background color via helper in GUI.h
+  uint16_t sx = (uint16_t)(st7920StartX + 0.5f);
+  uint16_t sy = (uint16_t)(st7920StartY + 0.5f);
+  uint16_t ex = (uint16_t)(st7920StartX + st7920Width + 0.5f);
+  uint16_t ey = (uint16_t)(st7920StartY + st7920Height + 0.5f);
+
+  if (ex > LCD_WIDTH) ex = LCD_WIDTH;
+  if (ey > LCD_HEIGHT) ey = LCD_HEIGHT;
+
+#if defined(LCD_MIRROR_HORIZONTALLY)
+  uint16_t msx = LCD_WIDTH - ex;
+  ex = LCD_WIDTH - sx;
+  sx = msx;
+#endif
+#if defined(LCD_MIRROR_VERTICALLY)
+  uint16_t msy = LCD_HEIGHT - ey;
+  ey = LCD_HEIGHT - sy;
+  sy = msy;
+#endif
+
+  GUI_FillRectColor(sx, sy, ex, ey, LCD_COLOR_BACKGROUND);
 }
 
 static void drawByteScaled(uint8_t x, uint8_t y, uint8_t d) {
-  // TODO
-  // relevant snippets from upstream
-  /*
-  #if defined(LCD_MIRROR_HORIZONTALLY)
-    #define _X(X,W) (LCD_WIDTH - (X) - (W) - 1)
-  #else
-    #define _X(X,W) (X)
-  #endif
-  #if defined(LCD_MIRROR_VERTICALLY)
-    #define _Y(Y,H) (LCD_HEIGHT - (Y) - (H) - 1)
-  #else
-    #define _Y(Y,H) (Y)
-  #endif
-  #define FILLRECT(X,Y,W,H,C) GUI_FillRectColor(_X(X,W), _Y(Y,H), _X(X,W) + W, _Y(Y,H) + H, C);
-  void drawByte(uint8_t x, uint8_t y, uint8_t d) {
-    // Loop over all bits
-    for (uint8_t i = 0; i < 8; ++i, ++x) {
-      // Draw pixel
-      FILLRECT(st7920StartX + x * st7920PixelSize,
-              st7920StartY + y * st7920PixelSize,
-              st7920PixelSize,
-              st7920PixelSize,
-              ((d & (1 << i)) > 0) ? LCD_COLOR_FOREGROUND : LCD_COLOR_BACKGROUND);
+  uint16_t xEdge[9];
+  for (uint8_t i = 0; i <= 8; ++i) {
+    xEdge[i] = (uint16_t)(st7920StartX + ((uint16_t)x + i) * st7920PixelWidth + 0.5f);
+  }
+
+  uint16_t sx = xEdge[0];
+  uint16_t ex = xEdge[8];
+  uint16_t sy = (uint16_t)(st7920StartY + (uint16_t)y * st7920PixelHeight + 0.5f);
+  uint16_t ey = (uint16_t)(st7920StartY + ((uint16_t)y + 1) * st7920PixelHeight + 0.5f);
+
+#if defined(LCD_MIRROR_HORIZONTALLY)
+  uint16_t msx = LCD_WIDTH - ex;
+  ex = LCD_WIDTH - sx;
+  sx = msx;
+  const int8_t bitStart = 7;
+  const int8_t bitEnd = -1;
+  const int8_t bitStep = -1;
+#else
+  const int8_t bitStart = 0;
+  const int8_t bitEnd = 8;
+  const int8_t bitStep = 1;
+#endif
+#if defined(LCD_MIRROR_VERTICALLY)
+  uint16_t msy = LCD_HEIGHT - ey;
+  ey = LCD_HEIGHT - sy;
+  sy = msy;
+#endif
+
+  if (!GUI_SetWindow(sx, sy, ex, ey)) {
+    return;
+  }
+
+  for (uint16_t row = sy; row < ey; ++row) {
+    for (int8_t bit = bitStart; bit != bitEnd; bit += bitStep) {
+      const uint16_t color = (d & (1 << bit)) ? LCD_COLOR_FOREGROUND : LCD_COLOR_BACKGROUND;
+      const uint16_t width = xEdge[bit + 1] - xEdge[bit];
+      for (uint16_t col = 0; col < width; ++col) {
+        GUI_NextColor(color);
+      }
     }
   }
-  */
-  // upstream populates screen pixel by pixel, every time doing "set" on single pixel
-  // instead implement this method using single "set" and then filling area with color
-  // observe LCD_MIRROR_HORIZONTALLY and LCD_MIRROR_VERTICALLY
-  // notice: byte is scaled, it is part of st7920 emulator
 }
 
 #if defined(LCD_TITLE) || defined(LCD_SD_TEXT_FILE)
