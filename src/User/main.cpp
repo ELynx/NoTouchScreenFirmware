@@ -10,8 +10,8 @@
 #include "St7920Emulator.hpp"
 #undef private
 
-#define ST7920_GXROWS 128.0f
-#define ST7920_GYROWS 64.0f
+#define ST7920_GXROWS 128
+#define ST7920_GYROWS 64
 
 #if defined(LCD_TITLE) || defined(LCD_SD_TEXT_FILE)
   #define LCD_TEXT_FONT_WIDTH 8
@@ -46,45 +46,56 @@
   #define LCD_TIMER_TICK
 #endif
 
-static float st7920Width;
-static float st7920Height;
-static float st7920PixelWidth;
-static float st7920PixelHeight;
-static float st7920StartX;
-static float st7920StartY;
+static uint16_t st7920XEdge[ST7920_GXROWS + 1];
+static uint16_t st7920YEdge[ST7920_GYROWS + 1];
 
 static void calculateScale(void) {
+  const float xRows = (float)ST7920_GXROWS;
+  const float yRows = (float)ST7920_GYROWS;
+
+  const float widthScale = LCD_WIDTH / xRows;
+
   const float availableHeight = LCD_HEIGHT - LCD_EMULATOR_TOP_MARGIN - LCD_EMULATOR_BOTTOM_MARGIN;
-  const float widthScale = LCD_WIDTH / ST7920_GXROWS;
-  const float heightScale = availableHeight / ST7920_GYROWS;
+  const float heightScale = availableHeight / yRows;
+  
   float scale = widthScale < heightScale ? widthScale : heightScale;
 
 #if !defined(LCD_FULLSCREEN)
   scale = (uint16_t)scale; // equivalent to floorf
 #endif
 
-  st7920Width = scale * ST7920_GXROWS;
-  st7920Height = scale * ST7920_GYROWS;
-  st7920PixelWidth = st7920Width / ST7920_GXROWS;
-  st7920PixelHeight = st7920Height / ST7920_GYROWS;
-  st7920StartX = (LCD_WIDTH - st7920Width) / 2;
-  st7920StartY = LCD_EMULATOR_TOP_MARGIN + (availableHeight - st7920Height) / 2;
+  const float st7920Width = scale * xRows;
+  const float st7920Height = scale * yRows;
+
+  const float st7920PixelWidth = st7920Width / xRows;
+  const float st7920PixelHeight = st7920Height / yRows;
+
+  const float st7920StartX = (LCD_WIDTH - st7920Width) / 2;
+  const float st7920StartY = LCD_EMULATOR_TOP_MARGIN + (availableHeight - st7920Height) / 2;
+
+  for (uint16_t i = 0; i <= ST7920_GXROWS; ++i) {
+    st7920XEdge[i] = (uint16_t)(st7920StartX + i * st7920PixelWidth + 0.5f);
+  }
+  if (st7920XEdge[ST7920_GXROWS] > LCD_WIDTH) st7920XEdge[ST7920_GXROWS] = LCD_WIDTH;
+
+  for (uint16_t i = 0; i <= ST7920_GYROWS; ++i) {
+    st7920YEdge[i] = (uint16_t)(st7920StartY + i * st7920PixelHeight + 0.5f);
+  }
+  if (st7920YEdge[ST7920_GYROWS] > LCD_HEIGHT) st7920YEdge[ST7920_GYROWS] = LCD_HEIGHT;
 }
 
 static void clearDisplayScaled() {
-  uint16_t sx = (uint16_t)(st7920StartX + 0.5f);
-  uint16_t sy = (uint16_t)(st7920StartY + 0.5f);
-  uint16_t ex = (uint16_t)(st7920StartX + st7920Width + 0.5f);
-  uint16_t ey = (uint16_t)(st7920StartY + st7920Height + 0.5f);
-
-  if (ex > LCD_WIDTH) ex = LCD_WIDTH;
-  if (ey > LCD_HEIGHT) ey = LCD_HEIGHT;
+  uint16_t sx = st7920XEdge[0];
+  uint16_t sy = st7920YEdge[0];
+  uint16_t ex = st7920XEdge[ST7920_GXROWS];
+  uint16_t ey = st7920YEdge[ST7920_GYROWS];
 
 #if defined(LCD_MIRROR_HORIZONTALLY)
   uint16_t msx = LCD_WIDTH - ex;
   ex = LCD_WIDTH - sx;
   sx = msx;
 #endif
+
 #if defined(LCD_MIRROR_VERTICALLY)
   uint16_t msy = LCD_HEIGHT - ey;
   ey = LCD_HEIGHT - sy;
@@ -95,28 +106,26 @@ static void clearDisplayScaled() {
 }
 
 static void drawByteScaled(uint8_t x, uint8_t y, uint8_t d) {
-  uint16_t xEdge[9];
-  for (uint8_t i = 0; i <= 8; ++i) {
-    xEdge[i] = (uint16_t)(st7920StartX + ((uint16_t)x + i) * st7920PixelWidth + 0.5f);
-  }
+  if ((uint16_t)x + 8 > ST7920_GXROWS || y >= ST7920_GYROWS) return;
 
-  uint16_t sx = xEdge[0];
-  uint16_t ex = xEdge[8];
-  uint16_t sy = (uint16_t)(st7920StartY + (uint16_t)y * st7920PixelHeight + 0.5f);
-  uint16_t ey = (uint16_t)(st7920StartY + ((uint16_t)y + 1) * st7920PixelHeight + 0.5f);
+  uint16_t sx = st7920XEdge[x];
+  uint16_t ex = st7920XEdge[x + 8];
+  uint16_t sy = st7920YEdge[y];
+  uint16_t ey = st7920YEdge[y + 1];
 
 #if defined(LCD_MIRROR_HORIZONTALLY)
   uint16_t msx = LCD_WIDTH - ex;
   ex = LCD_WIDTH - sx;
   sx = msx;
-  const int8_t bitStart = 7;
-  const int8_t bitEnd = -1;
-  const int8_t bitStep = -1;
+  const uint16_t bitStart = 7;
+  const uint16_t bitEnd = -1;
+  const uint16_t bitStep = -1;
 #else
-  const int8_t bitStart = 0;
-  const int8_t bitEnd = 8;
-  const int8_t bitStep = 1;
+  const uint16_t bitStart = 0;
+  const uint16_t bitEnd = 8;
+  const uint16_t bitStep = 1;
 #endif
+
 #if defined(LCD_MIRROR_VERTICALLY)
   uint16_t msy = LCD_HEIGHT - ey;
   ey = LCD_HEIGHT - sy;
@@ -128,9 +137,9 @@ static void drawByteScaled(uint8_t x, uint8_t y, uint8_t d) {
   }
 
   for (uint16_t row = sy; row < ey; ++row) {
-    for (int8_t bit = bitStart; bit != bitEnd; bit += bitStep) {
+    for (uint16_t bit = bitStart; bit != bitEnd; bit += bitStep) {
       const uint16_t color = (d & (1 << bit)) ? LCD_COLOR_FOREGROUND : LCD_COLOR_BACKGROUND;
-      const uint16_t width = xEdge[bit + 1] - xEdge[bit];
+      const uint16_t width = st7920XEdge[x + bit + 1] - st7920XEdge[x + bit];
       for (uint16_t col = 0; col < width; ++col) {
         GUI_NextColor(color);
       }
@@ -141,9 +150,7 @@ static void drawByteScaled(uint8_t x, uint8_t y, uint8_t d) {
 #if defined(LCD_TITLE) || defined(LCD_SD_TEXT_FILE)
 
 static uint16_t getFont816Index(char c) {
-  if (c == '\0' || c > 0x7F) {
-    c = '?';
-  }
+  if (c == 0x00 || c > 0x7F) c = '?';
   return ((uint16_t)c - 1) * LCD_TEXT_FONT_HEIGHT;
 }
 
@@ -167,8 +174,8 @@ static void drawTextLine(const char *text, uint16_t x, uint16_t y) {
 }
 
 static void drawTitleBarText(const char *text) {
-  const uint16_t w = calculateTextWidth(text);
-  const uint16_t x = calculateTextXFromCenter(w);
+  const uint16_t width = calculateTextWidth(text);
+  const uint16_t x = calculateTextXFromCenter(width);
   drawTextLine(text, x, 0);
 }
 
@@ -239,11 +246,23 @@ static void fillLogicalRect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint16_t
     return;
   }
 
-  fillRect(st7920StartX + x * st7920PixelWidth,
-           st7920StartY + y * st7920PixelHeight,
-           w * st7920PixelWidth,
-           h * st7920PixelHeight,
-           color);
+  uint16_t sx = st7920XEdge[x];
+  uint16_t sy = st7920YEdge[y];
+  uint16_t ex = st7920XEdge[x + w];
+  uint16_t ey = st7920YEdge[y + h];
+
+#if defined(LCD_MIRROR_HORIZONTALLY)
+  uint16_t msx = LCD_WIDTH - ex;
+  ex = LCD_WIDTH - sx;
+  sx = msx;
+#endif
+#if defined(LCD_MIRROR_VERTICALLY)
+  uint16_t msy = LCD_HEIGHT - ey;
+  ey = LCD_HEIGHT - sy;
+  sy = msy;
+#endif
+
+  GUI_FillRectColor(sx, sy, ex, ey, color);
 }
 
 static bool statusLogoOverrideMarkerAt(uint8_t markerType, uint8_t x, uint8_t y) {
@@ -611,11 +630,7 @@ static bool msElapsed(uint32_t currentMs, uint32_t targetMs) {
 }
 
 static uint16_t st7920BottomY(void) {
-  float bottom = st7920StartY + st7920Height;
-  if (bottom >= LCD_HEIGHT) {
-    return LCD_HEIGHT;
-  }
-  return (uint16_t)(bottom + 0.999f);
+  return st7920YEdge[ST7920_GYROWS];
 }
 
 static void clearTextBand(uint16_t y) {
