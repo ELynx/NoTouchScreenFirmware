@@ -20,6 +20,12 @@ void GD_DisableJTAG(void)
   gpio_pin_remap_config(GPIO_SWJ_SWDPENABLE_REMAP, ENABLE);
 }
 
+void GD_DisableDebug(void)
+{
+  rcu_periph_clock_enable(RCU_AF);
+  gpio_pin_remap_config(GPIO_SWJ_DISABLE_REMAP, ENABLE);
+}
+
 void GPIO_InitSet(uint16_t io, GPIO_MODE mode, uint32_t remap)
 {
   uint16_t port = GPIO_GET_PORT(io);

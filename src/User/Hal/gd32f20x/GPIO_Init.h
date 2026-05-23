@@ -156,6 +156,7 @@ extern "C" {
 
 void GD_NVIC_PriorityGroupConfig(void);
 void GD_DisableJTAG(void);
+void GD_DisableDebug(void);
 void GPIO_InitSet(uint16_t io, GPIO_MODE mode, uint32_t remap);
 void GPIO_SetLevel(uint16_t io, uint8_t level);
 void GPIO_ToggleLevel(uint16_t io);

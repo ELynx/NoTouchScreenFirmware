@@ -1,12 +1,11 @@
 #include "includes.h"
 
-#include <math.h>
-
 #include "myfatfs.h"
 #include "ff.h"
 #include "timer.h"
 #include "GPIO_Init.h"
 
+// to use 8x16 font
 #define private public
 #include "St7920Emulator.hpp"
 #undef private
@@ -54,55 +53,14 @@ static float st7920PixelHeight;
 static float st7920StartX;
 static float st7920StartY;
 
-static inline float minLcdPixel(float a, float b) {
-  return a < b ? a : b;
-}
-
-static inline uint16_t clampDisplayCoordinate(float value, uint16_t limit) {
-  if (value <= 0) return 0;
-  if (value >= limit) return limit;
-  return (uint16_t)(value + 0.5f); // round to nearest pixel
-}
-
-static void fillRect(float x,
-                     float y,
-                     float w,
-                     float h,
-                     uint16_t color) {
-  if (w <= 0 || h <= 0) {
-    return;
-  }
-
-#if defined(LCD_MIRROR_HORIZONTALLY)
-  const float sx = LCD_WIDTH - x - w;
-  const float ex = LCD_WIDTH - x;
-#else
-  const float sx = x;
-  const float ex = x + w;
-#endif
-
-#if defined(LCD_MIRROR_VERTICALLY)
-  const float sy = LCD_HEIGHT - y - h;
-  const float ey = LCD_HEIGHT - y;
-#else
-  const float sy = y;
-  const float ey = y + h;
-#endif
-
-  const uint16_t x0 = clampDisplayCoordinate(sx, LCD_WIDTH);
-  const uint16_t y0 = clampDisplayCoordinate(sy, LCD_HEIGHT);
-  const uint16_t x1 = clampDisplayCoordinate(ex, LCD_WIDTH);
-  const uint16_t y1 = clampDisplayCoordinate(ey, LCD_HEIGHT);
-
-  GUI_FillRectColor(x0, y0, x1, y1, color);
-}
-
-static void calculateSt7920Layout(void) {
+static void calculateScale(void) {
   const float availableHeight = LCD_HEIGHT - LCD_EMULATOR_TOP_MARGIN - LCD_EMULATOR_BOTTOM_MARGIN;
-  float scale = minLcdPixel(LCD_WIDTH / ST7920_GXROWS,
-                            availableHeight / ST7920_GYROWS);
+  const float widthScale = LCD_WIDTH / ST7920_GXROWS;
+  const float heightScale = availableHeight / ST7920_GYROWS;
+  float scale = widthScale < heightScale ? widthScale : heightScale;
+
 #if !defined(LCD_FULLSCREEN)
-  scale = floorf(scale);
+  scale = (uint16_t)scale; // equivalent to floorf
 #endif
 
   st7920Width = scale * ST7920_GXROWS;
@@ -112,6 +70,83 @@ static void calculateSt7920Layout(void) {
   st7920StartX = (LCD_WIDTH - st7920Width) / 2;
   st7920StartY = LCD_EMULATOR_TOP_MARGIN + (availableHeight - st7920Height) / 2;
 }
+
+static void clearDisplayScaled() {
+  // TODO
+  // Clear ST7920 gui rect
+  // calculate emulated gui rect observing LCD_MIRROR_HORIZONTALLY and LCD_MIRROR_VERTICALLY
+  // verify *if* rotations apply since area is always centered
+  // clear area with background color via helper in GUI.h
+}
+
+static void drawByteScaled(uint8_t x, uint8_t y, uint8_t d) {
+  // TODO
+  // relevant snippets from upstream
+  /*
+  #if defined(LCD_MIRROR_HORIZONTALLY)
+    #define _X(X,W) (LCD_WIDTH - (X) - (W) - 1)
+  #else
+    #define _X(X,W) (X)
+  #endif
+  #if defined(LCD_MIRROR_VERTICALLY)
+    #define _Y(Y,H) (LCD_HEIGHT - (Y) - (H) - 1)
+  #else
+    #define _Y(Y,H) (Y)
+  #endif
+  #define FILLRECT(X,Y,W,H,C) GUI_FillRectColor(_X(X,W), _Y(Y,H), _X(X,W) + W, _Y(Y,H) + H, C);
+  void drawByte(uint8_t x, uint8_t y, uint8_t d) {
+    // Loop over all bits
+    for (uint8_t i = 0; i < 8; ++i, ++x) {
+      // Draw pixel
+      FILLRECT(st7920StartX + x * st7920PixelSize,
+              st7920StartY + y * st7920PixelSize,
+              st7920PixelSize,
+              st7920PixelSize,
+              ((d & (1 << i)) > 0) ? LCD_COLOR_FOREGROUND : LCD_COLOR_BACKGROUND);
+    }
+  }
+  */
+  // upstream populates screen pixel by pixel, every time doing "set" on single pixel
+  // instead implement this method using single "set" and then filling area with color
+  // observe LCD_MIRROR_HORIZONTALLY and LCD_MIRROR_VERTICALLY
+  // notice: byte is scaled, it is part of st7920 emulator
+}
+
+#if defined(LCD_TITLE) || defined(LCD_SD_TEXT_FILE)
+
+static uint16_t getFont816Index(char c) {
+  if (c == '\0' || c > 0x7F) {
+    c = '?';
+  }
+  return ((uint16_t)c - 1) * LCD_TEXT_FONT_HEIGHT;
+}
+
+static uint16_t calculateTextWidth(const char *text) {
+  const size_t width = strlen(text) * LCD_TEXT_FONT_WIDTH;
+  return width > LCD_WIDTH ? LCD_WIDTH : (uint16_t)width;
+}
+
+static uint16_t calculateTextXFromCenter(uint16_t width) {
+  return (LCD_WIDTH - width) / 2;
+}
+
+static void drawTextLine(const char *text, uint16_t x, uint16_t y) {
+  // TODO
+  // calculate line height from defined constant
+  // calculate line width from *text pointer
+  // translate logical coordinates into physical; depends on LCD_MIRROR_HORIZONTALLY and LCD_MIRROR_VERTICALLY at compile time
+  // "set" physical line coordinates via GUI.h helper for whole line
+  // observing LCD_MIRROR_HORIZONTALLY and LCD_MIRROR_VERTICALLY, using getFont816Index to get font bitmap fill in "set" window by foreground / backgroud color pixel by pixel
+  // notice: text is not scaled, contrary to st7920 emulator
+}
+
+static void drawTitleBarText(const char *text) {
+  const uint16_t w = calculateTextWidth(text);
+  const uint16_t x = calculateTextXFromCenter(w);
+  drawTextLine(text, x, 0);
+}
+
+#endif // LCD_TITLE || LCD_SD_TEXT_FILE
 
 #if defined(LCD_SD_LOGO_FOLDER)
   #define ST7920_FRAMEBUFFER_WIDTH 128
@@ -144,7 +179,7 @@ typedef struct {
   uint8_t h;
 } STATUS_LOGO_RECT;
 
-// U8G/ST7920 bitmap bytes are compared in the same bit order used by drawLogicalByte().
+// U8G/ST7920 bitmap bytes are compared in the same bit order used by drawByteScaled().
 static const uint8_t pStatusLogoMarkers[STATUS_LOGO_OVERRIDE_MARKER_TYPES][STATUS_LOGO_OVERRIDE_MARKER_SIZE] = {
   {0xFF, 0x81, 0xBD, 0xA5, 0xB5, 0x85, 0xFD, 0x01},
   {0xFF, 0x81, 0xBD, 0xA5, 0xAD, 0xA1, 0xBF, 0x80},
@@ -159,80 +194,7 @@ static bool bStatusLogoOverrideFrameVisible = false;
 static bool bStatusLogoOverrideScanDirty = false;
 static uint16_t ui16StatusLogoAnimationFrame = 0;
 static uint32_t ui32StatusLogoAnimationNextMs = 0;
-#endif
 
-#if defined(LCD_TITLE) || defined(LCD_SD_TEXT_FILE)
-
-static uint16_t textCharIndex(char c) {
-  if (c == '\0' || c > 0x7F) {
-    c = '?';
-  }
-  return ((uint16_t)c - 1) * LCD_TEXT_FONT_HEIGHT;
-}
-
-static uint16_t textWidth(const char *text) {
-  size_t width = strlen(text) * LCD_TEXT_FONT_WIDTH;
-  return width > LCD_WIDTH ? LCD_WIDTH : (uint16_t)width;
-}
-
-static uint16_t centeredTextX(uint16_t width) {
-  return (LCD_WIDTH - width) / 2;
-}
-
-static void drawTextLine(const char *text, uint16_t x, uint16_t y) {
-  while (*text != '\0' && x + LCD_TEXT_FONT_WIDTH <= LCD_WIDTH) {
-    uint16_t charIndex = textCharIndex(*text);
-    for (uint8_t row = 0; row < LCD_TEXT_FONT_HEIGHT; ++row) {
-      uint8_t rowBits = St7920Emulator::pFont816[charIndex + row];
-      uint8_t col = 0;
-      while (col < LCD_TEXT_FONT_WIDTH) {
-        while (col < LCD_TEXT_FONT_WIDTH && (rowBits & (1 << col)) == 0) {
-          ++col;
-        }
-        uint8_t runStart = col;
-        while (col < LCD_TEXT_FONT_WIDTH && (rowBits & (1 << col)) != 0) {
-          ++col;
-        }
-        if (runStart < col) {
-          fillRect(x + runStart, y + row, col - runStart, 1, LCD_COLOR_FOREGROUND);
-        }
-      }
-    }
-    x += LCD_TEXT_FONT_WIDTH;
-    ++text;
-  }
-}
-
-static void drawTitleBarText(const char *text) {
-  drawTextLine(text, centeredTextX(textWidth(text)), 0);
-}
-#endif
-
-static void drawLogicalByte(uint8_t x, uint8_t y, uint8_t d) {
-  uint8_t runStart = 0;
-  uint16_t runColor = (d & 0x01) ? LCD_COLOR_FOREGROUND : LCD_COLOR_BACKGROUND;
-
-  for (uint8_t bit = 1; bit < 8; ++bit) {
-    uint16_t color = (d & (1 << bit)) ? LCD_COLOR_FOREGROUND : LCD_COLOR_BACKGROUND;
-    if (color != runColor) {
-      fillRect(st7920StartX + (x + runStart) * st7920PixelWidth,
-               st7920StartY + y * st7920PixelHeight,
-               (bit - runStart) * st7920PixelWidth,
-               st7920PixelHeight,
-               runColor);
-      runStart = bit;
-      runColor = color;
-    }
-  }
-
-  fillRect(st7920StartX + (x + runStart) * st7920PixelWidth,
-           st7920StartY + y * st7920PixelHeight,
-           (8 - runStart) * st7920PixelWidth,
-           st7920PixelHeight,
-           runColor);
-}
-
-#if defined(LCD_SD_LOGO_FOLDER)
 static void statusLogoOverrideReset(void) {
   memset(pSt7920FrameBuffer, 0, sizeof(pSt7920FrameBuffer));
   statusLogoOverrideRect.x = 0;
@@ -415,7 +377,7 @@ static void statusLogoOverrideRedrawRect(STATUS_LOGO_RECT rect) {
 
   for (uint8_t y = rect.y; y < rect.y + rect.h && y < ST7920_FRAMEBUFFER_HEIGHT; ++y) {
     for (uint8_t byteColumn = startByte; byteColumn < endByte; ++byteColumn) {
-      drawLogicalByte(byteColumn * 8, y, pSt7920FrameBuffer[y][byteColumn]);
+      drawByteScaled(byteColumn * 8, y, pSt7920FrameBuffer[y][byteColumn]);
     }
   }
 }
@@ -614,9 +576,10 @@ static void statusLogoOverrideFlush(bool bSdMounted, uint32_t currentMs) {
     statusLogoAnimationDrawNextFrame(bSdMounted, currentMs, bForceFrame);
   }
 }
-#endif
+#endif // LCD_SD_LOGO_FOLDER
 
 #if defined(LCD_SD_TEXT_FILE)
+
 static bool msElapsed(uint32_t currentMs, uint32_t targetMs) {
   return ((int32_t)(currentMs - targetMs)) >= 0;
 }
@@ -791,28 +754,46 @@ static void updateSdTextOverlay(bool bSdMounted, uint32_t currentMs) {
   drawTextLine(pSdTextLine, 0, y);
   ui32SdTextNextMs = currentMs + LCD_SD_TEXT_DELAY_SEC * 1000;
 }
-#endif
+
+#endif // LCD_SD_TEXT_FILE
 
 static void clearDisplay() {
 #if defined(LCD_SD_LOGO_FOLDER)
   statusLogoOverrideReset();
 #endif
 
-  // Clear ST7920 gui rect
-  fillRect(st7920StartX,
-           st7920StartY,
-           st7920Width,
-           st7920Height,
-           LCD_COLOR_BACKGROUND);
+  clearDisplayScaled();
 }
 
 static void drawByte(uint8_t x, uint8_t y, uint8_t d) {
 #if defined(LCD_SD_LOGO_FOLDER)
-  if (!statusLogoOverrideShouldDrawByte(x, y, d)) {
-    return;
-  }
+  if (!statusLogoOverrideShouldDrawByte(x, y, d)) return;
 #endif
-  drawLogicalByte(x, y, d);
+  drawByteScaled(x, y, d);
+}
+
+static void Lights_On() {
+  // Turn on backlight
+  #if defined(LCD_LED_PIN)
+    LCD_LED_On();
+  #endif
+
+  // Turn on knob LED
+  #if defined(KNOB_RGB_COLOR)
+    KnobLed_On();
+  #endif
+}
+
+static void Lights_Off() {
+  // Turn off backlight
+  #if defined(LCD_LED_PIN)
+    LCD_LED_Off();
+  #endif
+
+  // Turn off knob LED
+  #if defined(KNOB_RGB_COLOR)
+    KnobLed_Off();
+  #endif
 }
 
 extern volatile uint32_t ui32SpiActivated;
@@ -839,7 +820,7 @@ int main(void)
   Delay_init(rccClocks.HCLK_Frequency);
 
   // Disable JTAG
-  #ifdef DISABLE_JTAG
+  #if defined(DISABLE_JTAG)
     #if defined(GD32F2XX)
       DISABLE_JTAG();
     #else
@@ -849,29 +830,31 @@ int main(void)
   #endif
 
   // Disable SWJ
-  #ifdef DISABLE_DEBUG
-    #if !defined(GD32F2XX)
+  #if defined(DISABLE_DEBUG)
+    #if defined(GD32F2XX)
+      GD_DisableDebug();
+    #else
       RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
       GPIO_PinRemapConfig(GPIO_Remap_SWJ_Disable, ENABLE); //disable JTAG & SWD
     #endif
   #endif
 
   // Mount SD card
-  bool bSdMounted = mountSDCard();
+  const bool bSdMounted = mountSDCard();
   if(bSdMounted)
   {
     // Check if firmware binary exists
     if (f_file_exists(FIRMWARE_NAME ".bin"))
     {
       // Check of old firmware binary exists
-      if (f_file_exists(FIRMWARE_NAME ".CUR"))
+      if (f_file_exists(FIRMWARE_NAME ".cur"))
       {
         // Delete old firmware binary
-        f_unlink(FIRMWARE_NAME ".CUR");
+        f_unlink(FIRMWARE_NAME ".cur");
       }
 
       // Rename current firmware binary
-      f_rename(FIRMWARE_NAME ".bin", FIRMWARE_NAME ".CUR");
+      f_rename(FIRMWARE_NAME ".bin", FIRMWARE_NAME ".cur");
     }
   }
 
@@ -895,17 +878,18 @@ int main(void)
 #endif
 
   // Calculate ST7920 screen dimensions
-  calculateSt7920Layout();
-
-#if defined(LCD_SD_TEXT_FILE)
-  initSdTextOverlay(bSdMounted);
-  drawTitleBarText(pSdTextTitle);
-#elif defined(LCD_TITLE)
-  drawTitleBarText(LCD_TITLE);
-#endif
+  calculateScale();
 
   // Create emulator handle
   St7920Emulator st7920Emulator(clearDisplay, drawByte);
+
+  // Show title
+#if defined(LCD_TITLE)
+  drawTitleBarText(LCD_TITLE);
+#elif defined(LCD_SD_TEXT_FILE)
+  initSdTextOverlay(bSdMounted);
+  drawTitleBarText(pSdTextTitle);
+#endif
 
   // Show startup message
   const uint8_t pStartupMessage[] = {0xF8, 0x30, 0x00, 0x00, 0x60, 0x00, 0xC0, 0xF8, 0x80, 0x00, 0xFA, 0x50, 0x30, 0x50, 0x40, 0x30, 0x70, 0x30, 0x90, 0x30, 0x20, 0x30, 0x00, 0x40, 0x50, 0x60, 0xD0, 0x70, 0x50, 0x60, 0xC0, 0x60, 0x10, 0x70, 0x40, 0x60, 0xF0, 0x70, 0x20, 0xF8, 0x90, 0x00, 0xFA, 0x70, 0x20, 0x60, 0x50, 0x60, 0x10, 0x60, 0x40, 0x70, 0x90};
@@ -936,9 +920,9 @@ int main(void)
 #endif
 
   // Variables for SPI data received indicator
-#if defined(SPI_DATA_RECEIVED_INDICATOR) && defined(LCD_TITLE)
-  uint16_t ui16TitleWidth = textWidth(LCD_TITLE);
-  uint16_t ui16TitleX = centeredTextX(ui16TitleWidth);
+#if defined(SPI_DATA_RECEIVED_INDICATOR)
+  uint16_t ui16TitleWidth = calculateTextWidth(LCD_TITLE);
+  uint16_t ui16TitleX = calculateTextXFromCenter(ui16TitleWidth);
   uint16_t ui16TitleEnd = ui16TitleX + ui16TitleWidth;
   bool bSpiDataIndicator = ui16TitleX > 2;
   bool bSpiActivityIndicator = (ui16TitleEnd + 10) < LCD_WIDTH;
@@ -960,7 +944,7 @@ int main(void)
       st7920Emulator.parseSerialData(data);
 
       // Update SPI data received indicator
-#if defined(SPI_DATA_RECEIVED_INDICATOR) && defined(LCD_TITLE)
+#if defined(SPI_DATA_RECEIVED_INDICATOR)
       if (bSpiDataIndicator) {
         // Draw new pixel
         fillRect(ui16DX, ui16DY, 1, 1, ui16DColor);
@@ -994,7 +978,7 @@ int main(void)
     }
 
     // Update SPI activation display
-#if defined(SPI_DATA_RECEIVED_INDICATOR) && defined(LCD_TITLE)
+#if defined(SPI_DATA_RECEIVED_INDICATOR)
     if (bSpiActivityIndicator) {
       while (ui32LastSpiActivated < ui32SpiActivated) {
         // Draw new pixel
@@ -1050,10 +1034,8 @@ int main(void)
       uint32_t ui32BtnPressDuration = ui32CurrentMs - ui32FirstBtnPress;
 
       if (ui32BtnPressDuration >= SPI_RESTART_KNOB_PRESS_DURATION_SEC * 1000) {
-        // Turn off backlight
-        #ifdef LCD_LED_PIN
-          LCD_LED_Off();
-        #endif
+        // Visual indicators off
+        Lights_Off();
 
         // Reset SPI
         SPI_SlaveDeinit();
@@ -1064,15 +1046,8 @@ int main(void)
         // Init SPI
         SPI_Slave(&spiQueue);
 
-        // Turn on backlight
-        #ifdef LCD_LED_PIN
-          LCD_LED_On();
-        #endif
-
-        // Turn on knob LED
-        #ifdef KNOB_RGB_COLOR
-          KnobLed_On();
-        #endif
+        // Visual indicators on
+        Lights_On();
 
         // Reset emulator
         st7920Emulator.reset(true);
@@ -1090,15 +1065,10 @@ int main(void)
       // Store current value
       ui8LastEncoder = ui8CurrentEncoder;
 
-      // Check if screen is off
+      // Check if screen is logically off
       if (!bScreenOn) {
-        // Turn on screen
-        LCD_LED_On();
-
-        // Turn on knob LED
-        #ifdef KNOB_RGB_COLOR
-          KnobLed_On();
-        #endif
+        // Visual indicators on
+        Lights_On();
 
         // Set flag
         bScreenOn = true;
@@ -1107,20 +1077,15 @@ int main(void)
       // Store current time
       ui32LastActive = ui32CurrentMs;
     }
-    // Check if screen is on
+    // Check if screen is logically on
     else if (bScreenOn) {
       // Get difference to last active timestamp
       uint32_t ui32IdleDuration = ui32CurrentMs - ui32LastActive;
 
       // Check inactivity time
       if (ui32IdleDuration >= LCD_IDLE_TIMEOUT_SEC * 1000) {
-        // Turn off screen
-        LCD_LED_Off();
-
-        // Turn off knob LED
-        #ifdef KNOB_RGB_COLOR
-          KnobLed_Off();
-        #endif
+        // Visual indicators off
+        Lights_Off();
 
         // Clear flag
         bScreenOn = false;
